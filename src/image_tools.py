@@ -163,6 +163,11 @@ def contours(img):
     contours, hierarchy = cv.findContours(img, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     return contours, hierarchy
 
+def contours_tree(img):
+    #_, binotsu=cv.threshold(img, 50, 255, type=cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
+    contours, hierarchy = cv.findContours(img, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    return contours, hierarchy
+
 def morph_ops(img):
     img = reloadim(img)
     grey = turn_greyscale(img)
