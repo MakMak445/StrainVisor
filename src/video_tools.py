@@ -110,9 +110,14 @@ def find_impact_frame(file,vidpath):
     _, frame_thresh = cv.threshold(blur, 0, 255, cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
                 #frame_thresh = cv.adaptiveThreshold(blur, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 15, -1)
     init_contour, hierarchy = it.contours(frame_thresh)
+    output = init_frame.copy()
+    cv.drawContours(output, init_contour, -1, (0, 255, 0), 1)
+    cv.imshow('contours', output)
+    cv.waitKey(0)
+    cv.destroyAllWindows()                        
     if len(init_contour) == 1:
         init_points = init_contour[0].reshape(-1, 2)
-        init_height = init_points[:, 1].min()
+        init_height = init_points[:, 1].max() - init_points[:, 1].min()
     #else: raise ImportError('First Frame must only contain sample, please crop video again.')
     found = False
     while not found:
@@ -221,19 +226,20 @@ def obtain_base_index(init_markers):
     while not obtained:
         if init_markers[h-index, col_num]!=init_markers[h-index-1, col_num]:
             obtained = True
-            return (h-index)
+            return (h-index), index
         else: index+=1
     
 def obtain_height_from_markers(markers, base_index, init_height):
     obtained = False
     index = 2
     h, w = markers.shape
-    init_height = init_height-(h-base_index)
     col_num = w//2
     while not obtained:
         if (markers[index ,col_num] != markers[index - 1, col_num]):
             obtained = True
-            return base_index - index
+            if (base_index-index)<=init_height:
+                return base_index - index
+            else: return init_height 
         else: 
             index += 1
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
@@ -241,8 +247,8 @@ def obtain_height_from_markers(markers, base_index, init_height):
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/Footage_00084.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/Footage_00082.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/Footage_00098.cine"
-vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/Footage_00173.cine"
+vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/Footage_00098.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/Footage_00173.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/Footage_00139.cine"
 #vidpath = ""
 #vidpath = ""
@@ -254,8 +260,8 @@ vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropW
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/ForceData_00065.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/ForceData_00084.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/ForceData_00082.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/ForceData_00098.csv"
-file = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/ForceData_00173.csv"
+file = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/ForceData_00098.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/ForceData_00173.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/ForceData_00139.csv"
 #file = ""
 #file = ""
@@ -333,19 +339,24 @@ cap.set(cv.CAP_PROP_POS_FRAMES, impact_index-1)
 heights = []
 base_indices = False
 frames = []
+print(init_height)
 for i in range(impact_index-1, impact_index+150):
     ret, frame = cap.read()
     if ret:
         markers = obtain_markers(frame, hormin, hormax, vermin)
         if base_indices == False:
-            base_index = obtain_base_index(markers) 
+            base_index, base_height = obtain_base_index(markers) 
             base_indices = True 
-            init_height = init_height-(markers.shape)
+            init_height = init_height-base_height
+            print(init_height)
+            #print(base_index)
         height = obtain_height_from_markers(markers, base_index, init_height)
         heights.append(height)
         frames.append(i)
-        print(i/25000, height)
+        #print(i/25000, height)
     else: continue
 
-plt.plot(frames, heights, '.-')
+plt.plot(frames, (heights-init_height)/init_height, '.-')
+plt.xlabel('Frame')
+plt.ylabel('Strain')
 plt.show()
