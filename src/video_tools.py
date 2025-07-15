@@ -104,7 +104,7 @@ def find_impact_frame(file,vidpath):
     if cap.isOpened() == False: raise TypeError('Not correct path to video')
     cap.set(cv.CAP_PROP_POS_FRAMES, 0)
     ret, init_frame = cap.read()
-    cap.set(cv.CAP_PROP_POS_FRAMES, 507)
+    cap.set(cv.CAP_PROP_POS_FRAMES, 538)
     ret, late_frame = cap.read()
     blur = cv.GaussianBlur(cv.cvtColor(init_frame, cv.COLOR_BGR2GRAY), (11, 11), 0)
     _, frame_thresh = cv.threshold(blur, 0, 255, cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
@@ -112,7 +112,7 @@ def find_impact_frame(file,vidpath):
     init_contour, hierarchy = it.contours(frame_thresh)
     if len(init_contour) == 1:
         init_points = init_contour[0].reshape(-1, 2)
-        init_height = init_points.min()
+        init_height = init_points[:, 1].min()
     #else: raise ImportError('First Frame must only contain sample, please crop video again.')
     found = False
     while not found:
@@ -177,6 +177,7 @@ def find_impact_frame(file,vidpath):
                 cv.waitKey(0)
                 cv.destroyAllWindows()
                 '''
+        print(f"initial height is {init_height}")
         if collision_frame[2] and collision_frame[1] and not (collision_frame[0]):
             found = True
             impact_frame_index = frame_guess
@@ -201,7 +202,7 @@ def find_impact_frame(file,vidpath):
             if frame_guess_extrap==frame_guess:
                 frame_guess+=1
             else: frame_guess = frame_guess_extrap
-    return seed_contours, seed_frame, impact_frame_index, impact_frame, late_frame
+    return seed_contours, seed_frame, impact_frame_index, init_height
 
 """
     Given:
@@ -212,65 +213,139 @@ def find_impact_frame(file,vidpath):
       - markers: the labeled marker image after watershed (–1 = boundary)
       - segmented: color‐coded BGR image showing each segment
 """
+def obtain_base_index(init_markers):
+    obtained = False
+    index = 2
+    h, w = init_markers.shape
+    col_num = w//2
+    while not obtained:
+        if init_markers[h-index, col_num]!=init_markers[h-index-1, col_num]:
+            obtained = True
+            return (h-index)
+        else: index+=1
+    
+def obtain_height_from_markers(markers, base_index, init_height):
+    obtained = False
+    index = 2
+    h, w = markers.shape
+    init_height = init_height-(h-base_index)
+    col_num = w//2
+    while not obtained:
+        if (markers[index ,col_num] != markers[index - 1, col_num]):
+            obtained = True
+            return base_index - index
+        else: 
+            index += 1
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/Footage_00132.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/Footage_00084.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/Footage_00082.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/Footage_00098.cine"
+vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/Footage_00173.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/Footage_00139.cine"
+#vidpath = ""
+#vidpath = ""
+#vidpath = ""
+#vidpath = ""
 
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/ForceData_00065.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/ForceData_00132.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/ForceData_00065.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/ForceData_00084.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/ForceData_00082.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/ForceData_00098.csv"
+file = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/ForceData_00173.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/ForceData_00139.csv"
+#file = ""
+#file = ""
+#file = ""
+#file = ""
 
-vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/Footage_00132.cine"
-file = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/ForceData_00132.csv"
-#crop_video_with_roi(vidpath, "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/Footage_00051_cropped.mp4")
-cropped_vidpath = vidpath #"/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/Footage_00051_cropped.mp4"
-seed_contours, late_frame, impact_index, impact_frame, seed_frame = find_impact_frame(file, cropped_vidpath)
+def obtain_crop_dimensions(seed_frame, seed_contours):
+    width, height =seed_frame.shape[:2]
+    sample_contour = seed_contours[0]
+    sample_points = np.array(sample_contour.reshape(-1, 2))
+    weight_contour = seed_contours[1]
+    weight_points = weight_contour.reshape(-1, 2)
+    highest_point_sample = sample_points[:, 1].min()
+    lowest_point_weight = weight_points[:,1].max()
+    vert_border = highest_point_sample
+    hori_cent_disp = sample_points - width//2
+    horizontal_max = hori_cent_disp.min()+width
+    horizontal_max = sample_points[:, 0].max()
+    horizontal_min = sample_points[:, 0].min()
+    return horizontal_min, horizontal_max, round(lowest_point_weight*0.95)
 
+def obtain_markers(frame, horiz_min, horiz_max, vert_min):
+    cropped = frame[vert_min:, horiz_min:horiz_max]
+    grey = cv.cvtColor(cropped, cv.COLOR_BGR2GRAY)
+    #it.canny_edge(grey)
+    blur = cv.GaussianBlur(grey, (7,7), 0)
+    norm = cv.normalize(blur, None, 0, 255, cv.NORM_MINMAX)
+    #ret, thresh = cv.threshold(norm,0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
+    thresh = cv.adaptiveThreshold(norm, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 15, 10)
+    #cv.imshow('Threshold OTSU', thresh)
+    #cv.waitKey(0)
+    #cv.destroyAllWindows()
+    kernel = np.ones((5,5),np.uint8)
+    opening = cv.morphologyEx(thresh,cv.MORPH_OPEN,kernel, iterations = 5)
+    
+    # sure background area
+    sure_bg = cv.dilate(opening,kernel,iterations=5)
+    
+    # Finding sure foreground area
+    dist_transform, labels = cv.distanceTransformWithLabels(opening,cv.DIST_L2,cv.DIST_MASK_PRECISE, cv.DIST_LABEL_CCOMP)
+    ret, sure_fg = cv.threshold(dist_transform,0.4*dist_transform.max(),255,0)
+    
+    # Finding unknown region
+    sure_fg = np.uint8(sure_fg)
+    unknown = cv.subtract(sure_bg,sure_fg)
+    # Marker labelling
+    ret, markers = cv.connectedComponents(sure_fg)
+    disp = cv.convertScaleAbs(markers, alpha=255.0/markers.max())
+    #cv.imshow('markers', disp)
+    #cv.waitKey(0)
+    #cv.destroyAllWindows()
+    # Add one to all labels so that sure background not 0, but 1
+    markers = markers+1
+    
+    # Now, mark the region of unknown with zero
+    markers[unknown==255] = 0
+    markers = cv.watershed(cropped,markers)
+    cropped[markers == -1] = [255,0,0]
+    cropped[markers == 1] = [0, 255, 0]
+    cropped[markers == 2] = [0, 0, 255]
+    cropped[markers == 3] = [0, 255, 255]
+    cropped[markers == 4] = [255, 255, 0]
+    cropped[markers == 5] = [255, 0, 255]
+    cropped[markers == 6] = [255, 102, 102]
+    cropped[markers == 7] = [102, 102, 255]
+    #cv.imshow('thresh', cropped)
+    #cv.waitKey(0)
+    #cv.destroyAllWindows()
+    return markers
 
-sample_contour = seed_contours[0]
-sample_points = sample_contour.reshape(-1, 2)
-weight_contour = seed_contours[1]
-weight_points = weight_contour.reshape(-1, 2)
-highest_point_sample = sample_points[:, 1].min()
-lowest_point_weight = weight_points[:,1].max()
-vert_border = highest_point_sample
-horizontal_max = sample_points[:, 0].max()
-horizontal_min = sample_points[:, 0].min()
-cropped = seed_frame[lowest_point_weight:, horizontal_min:horizontal_max]
-grey = cv.cvtColor(cropped, cv.COLOR_BGR2GRAY)
-it.canny_edge(grey)
-blur = cv.GaussianBlur(grey, (5, 5), 0)
-norm = cv.normalize(blur, None, 0, 255, cv.NORM_MINMAX, dtype = cv.CV_8U)
-#ret, thresh = cv.threshold(norm,0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
-thresh = cv.adaptiveThreshold(norm, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 15, 10)
-cv.imshow('Threshold OTSU', thresh)
-cv.waitKey(0)
-cv.destroyAllWindows()
-#it.canny_edge(thresh)
-#conts, hier = cv.findContours(thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-#output = cropped.copy()
-#cv.drawContours(output, conts, -1, (0, 255, 0), 1)
-#cv.imshow('Adaptive contours', output)
-#cv.waitKey(0)
-#cv.destroyAllWindows()
-# noise removal
-kernel = np.ones((5,5),np.uint8)
-opening = cv.morphologyEx(thresh,cv.MORPH_OPEN,kernel, iterations = 5)
- 
-# sure background area
-sure_bg = cv.dilate(opening,kernel,iterations=5)
- 
-# Finding sure foreground area
-dist_transform = cv.distanceTransform(opening,cv.DIST_L2,5)
-ret, sure_fg = cv.threshold(dist_transform,0.4*dist_transform.max(),255,0)
- 
-# Finding unknown region
-sure_fg = np.uint8(sure_fg)
-unknown = cv.subtract(sure_bg,sure_fg)
-# Marker labelling
-ret, markers = cv.connectedComponents(sure_fg)
- 
-# Add one to all labels so that sure background not 0, but 1
-markers = markers+1
- 
-# Now, mark the region of unknown with zero
-markers[unknown==255] = 0
-markers = cv.watershed(cropped,markers)
-cropped[markers == -1] = [255,0,0]
-cv.imshow('thresh', cropped)
-cv.waitKey(0)
-cv.destroyAllWindows()
+seed_contours, seed_frame, impact_index, init_height = find_impact_frame(file, vidpath)
+hormin, hormax, vermin = obtain_crop_dimensions(seed_frame, seed_contours)
+cap = cv.VideoCapture(vidpath)
+cap.set(cv.CAP_PROP_POS_FRAMES, impact_index-1)
+heights = []
+base_indices = False
+frames = []
+for i in range(impact_index-1, impact_index+150):
+    ret, frame = cap.read()
+    if ret:
+        markers = obtain_markers(frame, hormin, hormax, vermin)
+        if base_indices == False:
+            base_index = obtain_base_index(markers) 
+            base_indices = True 
+            init_height = init_height-(markers.shape)
+        height = obtain_height_from_markers(markers, base_index, init_height)
+        heights.append(height)
+        frames.append(i)
+        print(i/25000, height)
+    else: continue
+
+plt.plot(frames, heights, '.-')
+plt.show()
