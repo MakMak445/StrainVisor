@@ -332,31 +332,32 @@ def obtain_markers(frame, horiz_min, horiz_max, vert_min):
     #cv.destroyAllWindows()
     return markers
 
-seed_contours, seed_frame, impact_index, init_height = find_impact_frame(file, vidpath)
-hormin, hormax, vermin = obtain_crop_dimensions(seed_frame, seed_contours)
-cap = cv.VideoCapture(vidpath)
-cap.set(cv.CAP_PROP_POS_FRAMES, impact_index-1)
-heights = []
-base_indices = False
-frames = []
-print(init_height)
-for i in range(impact_index-1, impact_index+150):
-    ret, frame = cap.read()
-    if ret:
-        markers = obtain_markers(frame, hormin, hormax, vermin)
-        if base_indices == False:
-            base_index, base_height = obtain_base_index(markers) 
-            base_indices = True 
-            init_height = init_height-base_height
-            print(init_height)
-            #print(base_index)
-        height = obtain_height_from_markers(markers, base_index, init_height)
-        heights.append(height)
-        frames.append(i)
-        #print(i/25000, height)
-    else: continue
+def generate_strain_graph(file, vidpath):
+    seed_contours, seed_frame, impact_index, init_height = find_impact_frame(file, vidpath)
+    hormin, hormax, vermin = obtain_crop_dimensions(seed_frame, seed_contours)
+    cap = cv.VideoCapture(vidpath)
+    cap.set(cv.CAP_PROP_POS_FRAMES, impact_index-1)
+    heights = []
+    base_indices = False
+    frames = []
+    print(init_height)
+    for i in range(impact_index-1, impact_index+150):
+        ret, frame = cap.read()
+        if ret:
+            markers = obtain_markers(frame, hormin, hormax, vermin)
+            if base_indices == False:
+                base_index, base_height = obtain_base_index(markers) 
+                base_indices = True 
+                init_height = init_height-base_height
+                print(init_height)
+                #print(base_index)
+            height = obtain_height_from_markers(markers, base_index, init_height)
+            heights.append(height)
+            frames.append(i)
+            #print(i/25000, height)
+        else: continue
 
-plt.plot(frames, (heights-init_height)/init_height, '.-')
-plt.xlabel('Frame')
-plt.ylabel('Strain')
-plt.show()
+    plt.plot(frames, (heights-init_height)/init_height, '.-')
+    plt.xlabel('Frame')
+    plt.ylabel('Strain')
+    plt.show()
