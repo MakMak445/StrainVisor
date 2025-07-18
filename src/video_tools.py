@@ -5,7 +5,9 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
 import image_tools as it
-
+import base64, tempfile
+import os
+import io
 
 def video_properties(path: str):
     cap=cv.VideoCapture(path)
@@ -62,14 +64,13 @@ def crop_video_with_roi(input_path: str, output_path: str, codec: str = 'mp4v') 
     out.release()
     print(f"Cropped video saved to {output_path}, processed {frame_count} frames.")
 
-def force_tranducer_graph(file):
-    time, volt = np.loadtxt(file, delimiter=',', skiprows=3, unpack=True)
+def force_tranducer_graph(time, volt):
     time=time*10e-4
     if time[0] != 0.0: time = time - time[0]
     volt=volt*10e-4
     force_time_total = time[-1]
     return time, volt, force_time_total
-
+'''
 def contours_touching(cnta, cntb, img):
     h, w = img.shape[:2]
     mska = np.zeros((h, w), dtype=np.uint8)
@@ -80,9 +81,9 @@ def contours_touching(cnta, cntb, img):
     dialated = cv.dilate(mska, kernel, iterations=1)
     overlap = cv.bitwise_and(dialated, mskb)
     return bool(np.any(overlap))
-
-def find_impact_frame(file,vidpath):
-    time, volt, total_force_time = force_tranducer_graph(file)
+'''
+def find_impact_frame(time, volt, vidpath):
+    time, volt, total_force_time = force_tranducer_graph(time, volt)
     sg_volt=savgol_filter(volt, 100, 2)
     noise_thresh = np.mean(volt[:1000]) + 2*np.std(volt[:1000])
 
@@ -247,7 +248,7 @@ def obtain_height_from_markers(markers, base_index, init_height):
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/Footage_00084.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/Footage_00082.cine"
-vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/Footage_00098.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/Footage_00098.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/Footage_00173.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/Footage_00139.cine"
 #vidpath = ""
@@ -260,13 +261,14 @@ vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropW
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/ForceData_00065.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/ForceData_00084.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/ForceData_00082.csv"
-file = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/ForceData_00098.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/ForceData_00098.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/ForceData_00173.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/ForceData_00139.csv"
 #file = ""
 #file = ""
 #file = ""
 #file = ""
+
 
 def obtain_crop_dimensions(seed_frame, seed_contours):
     width, height =seed_frame.shape[:2]
@@ -332,8 +334,8 @@ def obtain_markers(frame, horiz_min, horiz_max, vert_min):
     #cv.destroyAllWindows()
     return markers
 
-def generate_strain_graph(file, vidpath):
-    seed_contours, seed_frame, impact_index, init_height = find_impact_frame(file, vidpath)
+def generate_strain_graph(time, volt, vidpath):
+    seed_contours, seed_frame, impact_index, init_height = find_impact_frame(time, volt, vidpath)
     hormin, hormax, vermin = obtain_crop_dimensions(seed_frame, seed_contours)
     cap = cv.VideoCapture(vidpath)
     cap.set(cv.CAP_PROP_POS_FRAMES, impact_index-1)
@@ -357,7 +359,4 @@ def generate_strain_graph(file, vidpath):
             #print(i/25000, height)
         else: continue
 
-    plt.plot(frames, (heights-init_height)/init_height, '.-')
-    plt.xlabel('Frame')
-    plt.ylabel('Strain')
-    plt.show()
+    return frames, (heights-init_height)/init_height
