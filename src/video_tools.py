@@ -65,9 +65,11 @@ def crop_video_with_roi(input_path: str, output_path: str, codec: str = 'mp4v') 
     print(f"Cropped video saved to {output_path}, processed {frame_count} frames.")
 
 def force_tranducer_graph(time, volt):
-    time=time*10e-4
+    time_np=np.array(time).astype(float)
+    time=time_np*10e-4
     if time[0] != 0.0: time = time - time[0]
-    volt=volt*10e-4
+    volt_np=np.array(volt).astype(float)
+    volt=volt_np*10e-4
     force_time_total = time[-1]
     return time, volt, force_time_total
 '''
