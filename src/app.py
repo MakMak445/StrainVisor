@@ -1,46 +1,13 @@
-from dash import Dash, html, dcc, callback, Output, Input, State, dash_table
-import datetime
+from dash import Dash, html, dcc, callback, Output, Input, State
 import base64
 import pandas as pd
 import io
-import dash_player as dp
 import plotly.express as px
 import video_tools as vt
-import base64, tempfile, os
-import cv2 as cv
-import subprocess
-import imageio.v3 as iio
+import base64, os
 import dash_uploader as du
-import numpy as np
-'''
-def save_to_tempfile(contents, ext):
-    """
-    contents: either a data-URI string (dash Upload.contents), raw bytes,
-              or an existing filename.
-    ext:      file extension (e.g. 'mp4' or 'csv')
-    returns:  path to a real file on disk
-    """
-    # Already on disk?
-    if isinstance(contents, str) and os.path.isfile(contents):
-        return contents
+import shutil
 
-    # Dash-style data URI?
-    if isinstance(contents, str) and contents.startswith("data:"):
-        header, b64 = contents.split(",", 1)
-        raw = base64.b64decode(b64)
-
-    # Raw bytes/bytearray?
-    elif isinstance(contents, (bytes, bytearray)):
-        raw = contents
-
-    else:
-        raise ValueError(f"Can't save contents of type {type(contents)}")
-
-    tmp = tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False)
-    tmp.write(raw)
-    tmp.flush()
-    return tmp.name
-'''
 def parse_contents(contents, filename, date):
     content_type, content_string = contents.split(',')
 
@@ -79,22 +46,7 @@ def delete_folder_contents():
             return f'Failed to delete {file_path}. Reason: {e}'
             
     return f"Successfully cleared all contents of the '{folder_path}' folder."
-'''
-def process_video(video_path):
-    cap = cv.VideoCapture(video_path)
-    frame_count = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
-    fps = cap.get(cv.CAP_PROP_FPS)
-    width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))
-    print(fps, height, width, frame_count)
-    cap.release()
 
-    return html.Div([
-        html.P(f"Frames: {frame_count}"),
-        html.P(f"FPS: {fps}"),
-        html.P(f"Resolution: {width}x{height}")
-    ])
-'''
 app = Dash(__name__)
 du.configure_upload(app, "uploads", use_upload_id=True)
 delete_folder_contents()
