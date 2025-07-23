@@ -4,7 +4,6 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
-import image_tools as it
 import base64, tempfile
 import os
 import io
@@ -112,12 +111,12 @@ def find_impact_frame(time, volt, vidpath):
     blur = cv.GaussianBlur(cv.cvtColor(init_frame, cv.COLOR_BGR2GRAY), (11, 11), 0)
     _, frame_thresh = cv.threshold(blur, 0, 255, cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
                 #frame_thresh = cv.adaptiveThreshold(blur, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 15, -1)
-    init_contour, hierarchy = it.contours(frame_thresh)
-    output = init_frame.copy()
-    cv.drawContours(output, init_contour, -1, (0, 255, 0), 1)
-    cv.imshow('contours', output)
-    cv.waitKey(0)
-    cv.destroyAllWindows()                        
+    init_contour, hierarchy = cv.findContours(frame_thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    #output = init_frame.copy()
+    #cv.drawContours(output, init_contour, -1, (0, 255, 0), 1)
+    #cv.imshow('contours', output)
+    #cv.waitKey(0)
+    #cv.destroyAllWindows()                        
     if len(init_contour) == 1:
         init_points = init_contour[0].reshape(-1, 2)
         init_height = init_points[:, 1].max() - init_points[:, 1].min()
@@ -146,7 +145,7 @@ def find_impact_frame(time, volt, vidpath):
                 norm = cv.normalize(gray, None, 0, 255, cv.NORM_MINMAX)
                 blur = cv.GaussianBlur(norm, (9, 9), 0)
                 _, frame_thresh = cv.threshold(blur, 0, 255, cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
-                contours, hierarchy = it.contours(frame_thresh)
+                contours, hierarchy = cv.findContours(frame_thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
                 contour_counts.append(len(contours))
                 if len(contours) == 2:
                     drop_weight = contours[1]
@@ -253,7 +252,7 @@ def obtain_height_from_markers(markers, base_index, init_height):
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/Footage_00098.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/Footage_00173.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/Footage_00139.cine"
-vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/Footage_00051.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/Footage_00051.cine"
 #vidpath = ""
 #vidpath = ""
 #vidpath = ""
@@ -266,7 +265,7 @@ vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropW
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/ForceData_00098.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/ForceData_00173.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/ForceData_00139.csv"
-file = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/ForceData_00051.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/ForceData_00051.csv"
 #file = ""
 #file = ""
 #file = ""
@@ -290,7 +289,6 @@ def obtain_crop_dimensions(seed_frame, seed_contours):
 def obtain_markers(frame, horiz_min, horiz_max, vert_min):
     cropped = frame[vert_min:, horiz_min:horiz_max]
     grey = cv.cvtColor(cropped, cv.COLOR_BGR2GRAY)
-    #it.canny_edge(grey)
     blur = cv.GaussianBlur(grey, (7,7), 0)
     norm = cv.normalize(blur, None, 0, 255, cv.NORM_MINMAX)
     #ret, thresh = cv.threshold(norm,0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
