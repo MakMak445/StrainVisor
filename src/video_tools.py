@@ -253,7 +253,7 @@ def obtain_height_from_markers(markers, base_index, init_height):
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/Footage_00098.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/Footage_00173.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/Footage_00139.cine"
-#vidpath = ""
+vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/Footage_00051.cine"
 #vidpath = ""
 #vidpath = ""
 #vidpath = ""
@@ -266,7 +266,7 @@ def obtain_height_from_markers(markers, base_index, init_height):
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/ForceData_00098.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/ForceData_00173.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/ForceData_00139.csv"
-#file = ""
+file = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/ForceData_00051.csv"
 #file = ""
 #file = ""
 #file = ""
@@ -358,7 +358,10 @@ def generate_strain_graph(time, volt, vidpath):
             height = obtain_height_from_markers(markers, base_index, init_height)
             heights.append(height)
             frames.append(i)
-            #print(i/25000, height)
+            print(i/25000, height)
         else: continue
 
     return frames, (heights-init_height)/init_height
+
+#time, volt = np.loadtxt(file, delimiter= ',',skiprows=2, unpack=True )
+#generate_strain_graph(time, volt, vidpath)
