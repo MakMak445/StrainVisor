@@ -2,11 +2,7 @@ import cv2 as cv
 import numpy as np
 import matplotlib
 matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
-import base64, tempfile
-import os
-import io
 
 def video_properties(path: str):
     cap=cv.VideoCapture(path)
@@ -71,18 +67,8 @@ def force_tranducer_graph(time, volt):
     volt=volt_np*10e-4
     force_time_total = time[-1]
     return time, volt, force_time_total
-'''
-def contours_touching(cnta, cntb, img):
-    h, w = img.shape[:2]
-    mska = np.zeros((h, w), dtype=np.uint8)
-    mskb = np.zeros((h, w), dtype=np.uint8)
-    cv.drawContours(mska, cnta, -1, 255, thickness=cv.FILLED)
-    cv.drawContours(mskb, cntb, -1, 255, thickness=cv.FILLED)
-    kernel = np.ones((3,3), dtype=np.uint8)
-    dialated = cv.dilate(mska, kernel, iterations=1)
-    overlap = cv.bitwise_and(dialated, mskb)
-    return bool(np.any(overlap))
-'''
+
+
 def find_impact_frame(time, volt, vidpath):
     time, volt, total_force_time = force_tranducer_graph(time, volt)
     sg_volt=savgol_filter(volt, 100, 2)
@@ -111,16 +97,10 @@ def find_impact_frame(time, volt, vidpath):
     blur = cv.GaussianBlur(cv.cvtColor(init_frame, cv.COLOR_BGR2GRAY), (11, 11), 0)
     _, frame_thresh = cv.threshold(blur, 0, 255, cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
                 #frame_thresh = cv.adaptiveThreshold(blur, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 15, -1)
-    init_contour, hierarchy = cv.findContours(frame_thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-    #output = init_frame.copy()
-    #cv.drawContours(output, init_contour, -1, (0, 255, 0), 1)
-    #cv.imshow('contours', output)
-    #cv.waitKey(0)
-    #cv.destroyAllWindows()                        
+    init_contour, hierarchy = cv.findContours(frame_thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)                       
     if len(init_contour) == 1:
         init_points = init_contour[0].reshape(-1, 2)
         init_height = init_points[:, 1].max() - init_points[:, 1].min()
-    #else: raise ImportError('First Frame must only contain sample, please crop video again.')
     found = False
     while not found:
         print(frame_guess)
@@ -137,10 +117,6 @@ def find_impact_frame(time, volt, vidpath):
         close_to_collision = False
         for i, frame in enumerate(frames):
             if ret == True:
-                #roi = cv.selectROI('Select ROI',frame, showCrosshair=True, fromCenter= False)
-                #cv.destroyWindow('Select ROI')
-                #x, y, w, h = roi
-                #cropped = frame[y:y+h, x:x+w]
                 gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
                 norm = cv.normalize(gray, None, 0, 255, cv.NORM_MINMAX)
                 blur = cv.GaussianBlur(norm, (9, 9), 0)
@@ -291,7 +267,6 @@ def obtain_markers(frame, horiz_min, horiz_max, vert_min):
     grey = cv.cvtColor(cropped, cv.COLOR_BGR2GRAY)
     blur = cv.GaussianBlur(grey, (7,7), 0)
     norm = cv.normalize(blur, None, 0, 255, cv.NORM_MINMAX)
-    #ret, thresh = cv.threshold(norm,0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
     thresh = cv.adaptiveThreshold(norm, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 15, 10)
     #cv.imshow('Threshold OTSU', thresh)
     #cv.waitKey(0)
@@ -299,26 +274,19 @@ def obtain_markers(frame, horiz_min, horiz_max, vert_min):
     kernel = np.ones((5,5),np.uint8)
     opening = cv.morphologyEx(thresh,cv.MORPH_OPEN,kernel, iterations = 5)
     
-    # sure background area
     sure_bg = cv.dilate(opening,kernel,iterations=5)
     
-    # Finding sure foreground area
     dist_transform, labels = cv.distanceTransformWithLabels(opening,cv.DIST_L2,cv.DIST_MASK_PRECISE, cv.DIST_LABEL_CCOMP)
     ret, sure_fg = cv.threshold(dist_transform,0.4*dist_transform.max(),255,0)
     
-    # Finding unknown region
     sure_fg = np.uint8(sure_fg)
     unknown = cv.subtract(sure_bg,sure_fg)
-    # Marker labelling
     ret, markers = cv.connectedComponents(sure_fg)
     disp = cv.convertScaleAbs(markers, alpha=255.0/markers.max())
     #cv.imshow('markers', disp)
     #cv.waitKey(0)
     #cv.destroyAllWindows()
-    # Add one to all labels so that sure background not 0, but 1
     markers = markers+1
-    
-    # Now, mark the region of unknown with zero
     markers[unknown==255] = 0
     markers = cv.watershed(cropped,markers)
     cropped[markers == -1] = [255,0,0]
@@ -342,7 +310,7 @@ def generate_strain_graph(time, volt, vidpath):
     heights = []
     base_indices = False
     frames = []
-    print(init_height)
+    #print(init_height)
     for i in range(impact_index-1, impact_index+150):
         ret, frame = cap.read()
         if ret:
@@ -351,12 +319,12 @@ def generate_strain_graph(time, volt, vidpath):
                 base_index, base_height = obtain_base_index(markers) 
                 base_indices = True 
                 init_height = init_height-base_height
-                print(init_height)
+                #print(init_height)
                 #print(base_index)
             height = obtain_height_from_markers(markers, base_index, init_height)
             heights.append(height)
             frames.append(i)
-            print(i/25000, height)
+            #print(i/25000, height)
         else: continue
 
     return frames, (heights-init_height)/init_height
