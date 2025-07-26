@@ -1,64 +1,27 @@
 from dash import Dash, html, dcc, callback, Output, Input, State
-import base64
-import pandas as pd
-import io
 import plotly.express as px
-import video_tools as vt
 import base64, os
 import dash_uploader as du
 import shutil
 import requests
 
-def parse_contents(contents, filename, date):
-    content_type, content_string = contents.split(',')
-
-    decoded = base64.b64decode(content_string)
-    try:
-        if 'csv' in filename:
-            # Assume that the user uploaded a CSV file
-            df = pd.read_csv(
-                io.StringIO(decoded.decode('utf-8')))
-        elif 'xls' in filename:
-            # Assume that the user uploaded an excel file
-            df = pd.read_excel(io.BytesIO(decoded))
-    except Exception as e:
-        print(e)
-        return html.Div([
-            'There was an error processing this file.'
-        ])
-
-    return df
-
-def delete_folder_contents():
-    folder_path = 'uploads' # The folder you want to clear
-    
-    if not os.path.isdir(folder_path):
-        return f"Error: Folder '{folder_path}' not found."
-
-    # Loop through everything in the folder and delete it
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
-        try:
-            if os.path.isfile(file_path) or os.path.islink(file_path):
-                os.remove(file_path)
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-        except Exception as e:
-            return f'Failed to delete {file_path}. Reason: {e}'
-            
-    return f"Successfully cleared all contents of the '{folder_path}' folder."
-
 app = Dash(__name__)
+VIDEO_API_URL = "http://localhost:8080"
+CSV_API_URL = "http://localhost:8000"
+
+video_endpoint = f"{VIDEO_API_URL}/process-video/"
+csv_endpoint = f"{CSV_API_URL}/process-csv/"
+
 du.configure_upload(app, "uploads", use_upload_id=True)
-delete_folder_contents()
 app.layout = html.Div([
     html.H1("Drop Weight Analysis Tool", style={'textAlign': 'center'}), 
-    html.Div([
+    html.Div([ 
         html.H3("Upload High speed impact footage"), 
-        du.Upload(id='video-uploader', text='Drag and Drop a single video file to upload',
-        filetypes=['mp4', 'mov', 'avi', 'cine'],
-        max_file_size=2000, # 2GB limit
-        max_files=1,
+        du.Upload(id='video-uploader', 
+                  text='Drag and Drop a single video file to upload',
+                  filetypes=['mp4', 'mov', 'avi', 'cine'],
+                  max_file_size=2000, # 2GB limit
+                  max_files=1,
         ), 
     html.Div(id='status-output'),
     dcc.Store(id='Stored-vidpath'),
@@ -79,14 +42,20 @@ app.layout = html.Div([
                 'textAlign': 'center', 'margin': '10px auto'
             }
         ),
+        dcc.Input(id="skiprows", 
+                  type="number", 
+                  placeholder="Input number of rows to skip", 
+                  disabled=True, 
+                  style={'width': '400px', 'height': '20px', 'textAlign': 'center', 'display': 'flex', 'justifyContent': 'center'} # Sets width to 400px and height to 50px
+        ), 
+        ]),
         html.Div(id='csv-preview'), 
         html.Hr(), 
         html.Button(id='submit-button-state', n_clicks=0, children='Submit'), 
-        dcc.Graph(id='Output-figure', figure={})
-    ]), 
+        dcc.Graph(id='Output-figure', figure={}), 
         html.Hr(),
         html.Video(id='video-with-lines')
-])
+    ])
 @du.callback(
     output = Output('Stored-vidpath', 'data'), # Update the store with the new path
     id='video-uploader'
@@ -124,6 +93,7 @@ def clear_space(new_filepath, old_filepath):
 
 @app.callback(
     Output('csv-box-text', 'children'),
+    Output("skiprows", "disabled"),
     Input('csv-upload', 'filename'),
     State('csv-box-text', 'children'),
     prevent_initial_call=True
@@ -131,27 +101,52 @@ def clear_space(new_filepath, old_filepath):
 def change_vid_text(filename, current_text): 
     if not filename:
         return current_text
-    return f'{filename}'
+    return f'{filename}', False
 
 @app.callback(
     Output('Output-figure', 'figure'),
     Input('submit-button-state', 'n_clicks'),
     State('csv-upload', 'filename'),
     State('Stored-vidpath', 'data'),
-    State('csv-upload', 'contents'),
-    State('csv-upload', 'last_modified'),
+    State('csv-upload', 'contents'),,
+    State('skiprows', 'value'),
     prevent_initial_call=True
 )
-def generate_graph(n_clicks, filename, vidpath, filecontents, date):
+def generate_graph(n_clicks, filename: str, vidpath, filecontents: str, skiprows: int):
+    if not isinstance(skiprows, int):
+        skiprows = 0
     if n_clicks == 0:
         return
     else:
-        df = parse_contents(filecontents, filename, date)
-        time = df['Time'].iloc[1:]
-        volt = df['Channel A'].iloc[1:]
-        print(time)
-        print(volt)
-        frames, strain = vt.generate_strain_graph(time, volt, vidpath)
+        csv_payload = {
+            "contents": filecontents,
+            "filename": filename,
+            "skiprows": skiprows,
+        }
+        csv_response = requests.post(csv_endpoint, json=csv_payload)
+        if csv_response.status_code != 200:
+            print("CSV API failed:", csv_response.text)
+            return
+        csv_data = csv_response.json()
+        time = csv_data["time"]
+        volt = csv_data["volt"]
+        print([csv_data["response"]])
+
+        video_payload = {
+            "time": time,
+            "volt": volt,
+            "vidpath": vidpath
+        }
+        video_response = requests.post(video_endpoint, json=video_payload)
+        if video_response.status_code != 200:
+            print("Video API failed:", video_response.text)
+            return
+
+        video_data = video_response.json()
+        frames = video_data["frames"]
+        strain = video_data["strain"]
+        if len(frames)!=len(strain):
+            raise IndexError('Frames and Strain are not the same length')
         fig = px.scatter(
         x=frames,
         y=strain,
