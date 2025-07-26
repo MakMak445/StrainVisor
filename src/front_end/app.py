@@ -1,18 +1,17 @@
-from dash import Dash, html, dcc, callback, Output, Input, State
+from dash import Dash, html, dcc, Output, Input, State
 import plotly.express as px
-import base64, os
 import dash_uploader as du
-import shutil
 import requests
 
 app = Dash(__name__)
-VIDEO_API_URL = "http://localhost:8080"
-CSV_API_URL = "http://localhost:8000"
+server = app.server
+VIDEO_API_URL = "http://video_backend:8000"
+CSV_API_URL = "http://data_backend:8000"
 
 video_endpoint = f"{VIDEO_API_URL}/process-video/"
 csv_endpoint = f"{CSV_API_URL}/process-csv/"
 
-du.configure_upload(app, "uploads", use_upload_id=True)
+du.configure_upload(app, "/app/uploads", use_upload_id=True)
 app.layout = html.Div([
     html.H1("Drop Weight Analysis Tool", style={'textAlign': 'center'}), 
     html.Div([ 
@@ -66,7 +65,7 @@ def handle_upload(status):
 
     # 2. Return ONLY the simple string
     return new_filepath
-
+'''
 @app.callback(
     Output('history-vidpath', 'data'),
     Output('status-output', 'children'), 
@@ -90,7 +89,7 @@ def clear_space(new_filepath, old_filepath):
 
     # Return the status message to the user and the new filepath to the store
     return new_filepath, status_message 
-
+'''
 @app.callback(
     Output('csv-box-text', 'children'),
     Output("skiprows", "disabled"),
@@ -108,7 +107,7 @@ def change_vid_text(filename, current_text):
     Input('submit-button-state', 'n_clicks'),
     State('csv-upload', 'filename'),
     State('Stored-vidpath', 'data'),
-    State('csv-upload', 'contents'),,
+    State('csv-upload', 'contents'),
     State('skiprows', 'value'),
     prevent_initial_call=True
 )

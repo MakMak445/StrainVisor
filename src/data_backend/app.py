@@ -30,8 +30,8 @@ def obtain_time_and_volt(request: CsvData):
     try:
         df = parse_contents(request.contents, request.filename)
         skip_index = request.skiprows
-        time = df.iloc[:, skip_index:]
-        volt = df.iloc[:, skip_index:]
+        time = df.iloc[skip_index:, 0]
+        volt = df.iloc[skip_index:, 1]
         return {
             "time": time.tolist(),
             "volt": volt.tolist(),

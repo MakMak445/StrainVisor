@@ -1,0 +1,38 @@
+version: '3.8'
+services:
+  front_end:
+    build:
+      context: ./front_end
+      dockerfile: Dockerfile
+    ports:
+      - "8050:8050"
+    volumes:
+      - shared_data:/app/uploads
+    depends_on:
+      - data_backend
+      - video_backend
+    networks:
+      - app-net
+
+  data_backend:
+    build:
+      context: ./data_backend
+      dockerfile: Dockerfile
+    networks:
+      - app-net
+
+  video_backend:
+    build:
+      context: ./video_backend
+      dockerfile: Dockerfile
+    volumes:
+      - shared_data:/app/uploads
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge
+
+volumes:
+  shared_data:
