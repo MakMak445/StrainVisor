@@ -15,8 +15,8 @@ def process_video(request: VideoAnalysisData):
     try:
         frames, strain = vt.generate_strain_graph(request.time, request.volt, request.vidpath)
         return {
-            "frames": list(frames),
-            "strain": list(strain),
+            "frames": frames,
+            "strain": strain,
             "Response":'Video analysed successfully' 
         }
     except Exception as e:
