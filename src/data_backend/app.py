@@ -35,7 +35,7 @@ def obtain_time_and_volt(request: CsvData):
         return {
             "time": time.tolist(),
             "volt": volt.tolist(),
-            "Response":'file analysed successfully' 
+            "response":'file analysed successfully' 
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An internal error occurred: {e}")
