@@ -4,3 +4,4 @@ numpy==2.3.1
 plotly==6.2.0
 Requests==2.32.4
 gunicorn==23.0.0
+pandas==2.3.1
