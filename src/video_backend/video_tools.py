@@ -335,5 +335,5 @@ def generate_strain_graph(time, volt, vidpath):
 
     return frames, (heights-init_height)/init_height
 
-time, volt = np.loadtxt(file, delimiter= ',',skiprows=2, unpack=True )
-generate_strain_graph(time, volt, vidpath)
+#time, volt = np.loadtxt(file, delimiter= ',',skiprows=2, unpack=True )
+#generate_strain_graph(time, volt, vidpath)
