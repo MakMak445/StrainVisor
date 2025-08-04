@@ -3,6 +3,33 @@ import numpy as np
 import matplotlib
 matplotlib.use('TkAgg')
 from scipy.signal import savgol_filter
+import matplotlib.pyplot as plt
+
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/Footage_00132.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/Footage_00084.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/Footage_00082.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/Footage_00098.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/Footage_00173.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/Footage_00139.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/Footage_00051.cine"
+#vidpath = ""
+#vidpath = ""
+#vidpath = ""
+
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/ForceData_00065.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/ForceData_00132.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/ForceData_00065.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/ForceData_00084.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/ForceData_00082.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/ForceData_00098.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/ForceData_00173.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/ForceData_00139.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/ForceData_00051.csv"
+#file = ""
+#file = ""
+#file = ""
 
 def video_properties(path: str):
     cap=cv.VideoCapture(path)
@@ -207,45 +234,25 @@ def obtain_base_index(init_markers):
             return (h-index), index
         else: index+=1
     
-def obtain_height_from_markers(markers, base_index, init_height):
+def obtain_height_from_markers(markers, base_index, init_height, prev_height):
+    #prev_index = 0
     obtained = False
-    index = 2
+    index = 0
     h, w = markers.shape
+    prev_index = base_index - prev_height - 5
+    #print(prev_height, prev_index)
     col_num = w//2
     while not obtained:
-        if (markers[index ,col_num] != markers[index - 1, col_num]):
+        if (markers[prev_index+index ,col_num] == -1):
             obtained = True
-            if (base_index-index)<=init_height:
-                return base_index - index
+            height = height = base_index - index - prev_index
+            if abs((height-prev_height)/prev_height)>=0.2:
+                return None
+            if (base_index - index - prev_index)<=init_height:
+                return height
             else: return init_height 
         else: 
             index += 1
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/Footage_00132.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/Footage_00084.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/Footage_00082.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/Footage_00098.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/Footage_00173.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/Footage_00139.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/Footage_00051.cine"
-#vidpath = ""
-#vidpath = ""
-#vidpath = ""
-
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/ForceData_00065.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/ForceData_00132.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/ForceData_00065.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/ForceData_00084.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/ForceData_00082.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/ForceData_00098.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/ForceData_00173.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/ForceData_00139.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/ForceData_00051.csv"
-#file = ""
-#file = ""
-#file = ""
-
 
 def obtain_crop_dimensions(seed_frame, seed_contours):
     width, height =seed_frame.shape[:2]
@@ -308,26 +315,32 @@ def generate_strain_graph(time, volt, vidpath):
     cap = cv.VideoCapture(vidpath)
     cap.set(cv.CAP_PROP_POS_FRAMES, impact_index-1)
     heights = []
-    base_indices = False
+    base_initialisation = False
     frames = []
-    #print(init_height)
     for i in range(impact_index-1, impact_index+150):
         ret, frame = cap.read()
         if ret:
             markers = obtain_markers(frame, hormin, hormax, vermin)
-            if base_indices == False:
+            if base_initialisation == False:
                 base_index, base_height = obtain_base_index(markers) 
-                base_indices = True 
+                base_initialisation = True 
                 init_height = init_height-base_height
                 #print(init_height)
                 #print(base_index)
-            height = obtain_height_from_markers(markers, base_index, init_height)
-            heights.append(height)
-            frames.append(i)
+            if heights:
+                print(f"init height is {init_height}")
+                height = obtain_height_from_markers(markers, base_index, init_height, heights[-1])
+            else: height = obtain_height_from_markers(markers, base_index, init_height, init_height)
+            if height: 
+                heights.append(height)
+                frames.append(i)
+            #print(base_index)
             #print(i/25000, height)
         else: continue
 
     return frames, (heights-init_height)/init_height
 
 #time, volt = np.loadtxt(file, delimiter= ',',skiprows=2, unpack=True )
-#generate_strain_graph(time, volt, vidpath)
+#frames, strain = generate_strain_graph(time, volt, vidpath)
+#plt.plot(frames, strain, 'o')
+#plt.show()
