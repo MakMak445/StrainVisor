@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 import video_tools as vt
 from pydantic import BaseModel
 import os
+import shutil
 
 class VideoAnalysisData(BaseModel):
     time: list
@@ -27,6 +28,9 @@ def process_video(request: VideoAnalysisData):
         # --- CRITICAL FIX 2: The cleanup logic ---
         # This 'finally' block will execute after the 'try' block, regardless of
         # whether an error occurred or not.
-        if os.path.exists(request.vidpath):
-            print(f"Cleaning up. Deleting file: {request.vidpath}")
-            os.remove(request.vidpath)
+        parent_dir = os.path.dirname(request.vidpath)  # Get parent directory of the file
+        try:
+            shutil.rmtree(parent_dir)
+            print(f"Deleted directory: {parent_dir}")
+        except Exception as e:
+            print(f"Failed to delete {parent_dir}. Reason: {e}")
