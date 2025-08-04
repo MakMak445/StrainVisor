@@ -235,7 +235,7 @@ def obtain_base_index(init_markers):
         else: index+=1
     
 def obtain_height_from_markers(markers, base_index, init_height, prev_height):
-    prev_index = 0
+    #prev_index = 0
     obtained = False
     index = 0
     h, w = markers.shape
