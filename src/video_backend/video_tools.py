@@ -4,6 +4,32 @@ import matplotlib
 matplotlib.use('TkAgg')
 from scipy.signal import savgol_filter
 
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/Footage_00132.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/Footage_00084.cine"
+vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/Footage_00082.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/Footage_00098.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/Footage_00173.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/Footage_00139.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/Footage_00051.cine"
+#vidpath = ""
+#vidpath = ""
+#vidpath = ""
+
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/ForceData_00065.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/ForceData_00132.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/ForceData_00065.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/ForceData_00084.csv"
+file = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/ForceData_00082.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/ForceData_00098.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/ForceData_00173.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/ForceData_00139.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/ForceData_00051.csv"
+#file = ""
+#file = ""
+#file = ""
+
 def video_properties(path: str):
     cap=cv.VideoCapture(path)
     if cap.isOpened() == False: raise TypeError('Not correct path to video')
@@ -207,45 +233,22 @@ def obtain_base_index(init_markers):
             return (h-index), index
         else: index+=1
     
-def obtain_height_from_markers(markers, base_index, init_height):
+def obtain_height_from_markers(markers, base_index, init_height, prev_height):
+    prev_index = 0
     obtained = False
-    index = 2
+    index = 0
     h, w = markers.shape
+    prev_index = base_index - prev_height 
+    print(prev_height, prev_index)
     col_num = w//2
     while not obtained:
-        if (markers[index ,col_num] != markers[index - 1, col_num]):
+        if (markers[prev_index+index ,col_num] != markers[prev_index+index-1, col_num]):
             obtained = True
-            if (base_index-index)<=init_height:
-                return base_index - index
+            if (base_index - index - prev_index)<=init_height:
+                return base_index - index - prev_index
             else: return init_height 
         else: 
             index += 1
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/Footage_00132.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/Footage_00084.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/Footage_00082.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/Footage_00098.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/Footage_00173.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/Footage_00139.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/Footage_00051.cine"
-#vidpath = ""
-#vidpath = ""
-#vidpath = ""
-
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/ForceData_00065.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/ForceData_00132.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/ForceData_00065.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/ForceData_00084.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/ForceData_00082.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/ForceData_00098.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/ForceData_00173.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/ForceData_00139.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/ForceData_00051.csv"
-#file = ""
-#file = ""
-#file = ""
-
 
 def obtain_crop_dimensions(seed_frame, seed_contours):
     width, height =seed_frame.shape[:2]
@@ -290,13 +293,13 @@ def obtain_markers(frame, horiz_min, horiz_max, vert_min):
     markers[unknown==255] = 0
     markers = cv.watershed(cropped,markers)
     cropped[markers == -1] = [255,0,0]
-    cropped[markers == 1] = [0, 255, 0]
-    cropped[markers == 2] = [0, 0, 255]
-    cropped[markers == 3] = [0, 255, 255]
-    cropped[markers == 4] = [255, 255, 0]
-    cropped[markers == 5] = [255, 0, 255]
-    cropped[markers == 6] = [255, 102, 102]
-    cropped[markers == 7] = [102, 102, 255]
+    #cropped[markers == 1] = [0, 255, 0]
+    #cropped[markers == 2] = [0, 0, 255]
+    #cropped[markers == 3] = [0, 255, 255]
+    #cropped[markers == 4] = [255, 255, 0]
+    #cropped[markers == 5] = [255, 0, 255]
+    #cropped[markers == 6] = [255, 102, 102]
+    #cropped[markers == 7] = [102, 102, 255]
     #cv.imshow('thresh', cropped)
     #cv.waitKey(0)
     #cv.destroyAllWindows()
@@ -308,26 +311,29 @@ def generate_strain_graph(time, volt, vidpath):
     cap = cv.VideoCapture(vidpath)
     cap.set(cv.CAP_PROP_POS_FRAMES, impact_index-1)
     heights = []
-    base_indices = False
+    base_initialisation = False
     frames = []
-    #print(init_height)
     for i in range(impact_index-1, impact_index+150):
         ret, frame = cap.read()
         if ret:
             markers = obtain_markers(frame, hormin, hormax, vermin)
-            if base_indices == False:
+            if base_initialisation == False:
                 base_index, base_height = obtain_base_index(markers) 
-                base_indices = True 
+                base_initialisation = True 
                 init_height = init_height-base_height
                 #print(init_height)
                 #print(base_index)
-            height = obtain_height_from_markers(markers, base_index, init_height)
+            if heights:
+                height = obtain_height_from_markers(markers, base_index, init_height, heights[-1])
+            else: height = obtain_height_from_markers(markers, base_index, init_height, init_height)
             heights.append(height)
+            print(height)
             frames.append(i)
+            #print(base_index)
             #print(i/25000, height)
         else: continue
 
     return frames, (heights-init_height)/init_height
 
-#time, volt = np.loadtxt(file, delimiter= ',',skiprows=2, unpack=True )
-#generate_strain_graph(time, volt, vidpath)
+time, volt = np.loadtxt(file, delimiter= ',',skiprows=2, unpack=True )
+generate_strain_graph(time, volt, vidpath)
