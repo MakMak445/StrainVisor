@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/Footage_00173.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/Footage_00139.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/Footage_00051.cine"
-#vidpath = ""
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-051/Data/Actions/DropWeight/Task_0002/Footage_00076.cine"
 #vidpath = ""
 #vidpath = ""
 
@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/ForceData_00173.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/ForceData_00139.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/ForceData_00051.csv"
-#file = ""
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-051/Data/Actions/DropWeight/Task_0002/ForceData_00076.csv"
 #file = ""
 #file = ""
 
@@ -113,7 +113,7 @@ def find_impact_frame(time, volt, vidpath):
             imp_time.append(t)
             imp_volt.append(v)
     vid_fps, vid_frame_count, vid_total_time = video_properties(vidpath)
-    frame_guess = round((imp_time[0]*vid_fps)*(vid_frame_count/(total_force_time*vid_fps)))
+    frame_guess = 1
 
     cap = cv.VideoCapture(vidpath)
     if cap.isOpened() == False: raise TypeError('Not correct path to video')
@@ -121,7 +121,10 @@ def find_impact_frame(time, volt, vidpath):
     ret, init_frame = cap.read()
     cap.set(cv.CAP_PROP_POS_FRAMES, 538)
     ret, late_frame = cap.read()
+    #clahe = cv.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    #enhanced
     blur = cv.GaussianBlur(cv.cvtColor(init_frame, cv.COLOR_BGR2GRAY), (11, 11), 0)
+
     _, frame_thresh = cv.threshold(blur, 0, 255, cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
                 #frame_thresh = cv.adaptiveThreshold(blur, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 15, -1)
     init_contour, hierarchy = cv.findContours(frame_thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)                       
@@ -146,9 +149,13 @@ def find_impact_frame(time, volt, vidpath):
             if ret == True:
                 gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
                 norm = cv.normalize(gray, None, 0, 255, cv.NORM_MINMAX)
-                blur = cv.GaussianBlur(norm, (9, 9), 0)
+                blur = cv.GaussianBlur(gray, (5, 5), 0)
                 _, frame_thresh = cv.threshold(blur, 0, 255, cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
                 contours, hierarchy = cv.findContours(frame_thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+                # Minimum area threshold — tweak this value!
+                min_area = 200  
+                # Filtered list of contours
+                contours = [cnt for cnt in contours if cv.contourArea(cnt) >= min_area]
                 contour_counts.append(len(contours))
                 if len(contours) == 2:
                     drop_weight = contours[1]
