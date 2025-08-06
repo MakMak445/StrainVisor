@@ -113,14 +113,14 @@ def find_impact_frame(time, volt, vidpath):
             imp_time.append(t)
             imp_volt.append(v)
     vid_fps, vid_frame_count, vid_total_time = video_properties(vidpath)
-    frame_guess = 1
+    frame_guess = round((imp_time[0]*vid_fps)*(vid_frame_count/(total_force_time*vid_fps)))
 
     cap = cv.VideoCapture(vidpath)
     if cap.isOpened() == False: raise TypeError('Not correct path to video')
     cap.set(cv.CAP_PROP_POS_FRAMES, 0)
     ret, init_frame = cap.read()
     cap.set(cv.CAP_PROP_POS_FRAMES, 538)
-    ret, late_frame = cap.read()
+    ret = cap.read()
     #clahe = cv.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
     #enhanced
     blur = cv.GaussianBlur(cv.cvtColor(init_frame, cv.COLOR_BGR2GRAY), (11, 11), 0)
@@ -151,7 +151,7 @@ def find_impact_frame(time, volt, vidpath):
                 norm = cv.normalize(gray, None, 0, 255, cv.NORM_MINMAX)
                 blur = cv.GaussianBlur(gray, (5, 5), 0)
                 _, frame_thresh = cv.threshold(blur, 0, 255, cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
-                contours, hierarchy = cv.findContours(frame_thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+                contours, _ = cv.findContours(frame_thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
                 # Minimum area threshold — tweak this value!
                 min_area = 200  
                 # Filtered list of contours
