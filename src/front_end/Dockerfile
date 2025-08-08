@@ -34,5 +34,5 @@ USER appuser
 EXPOSE 8050
 
 # Set the command to run the application
-CMD ["sh", "-c", "chown -R appuser:appgroup /app/uploads && exec gunicorn --bind 0.0.0.0:8050 --user appuser --group appgroup --timeout 300 app:server"]
+CMD ["sh", "-c", "chown -R appuser:appgroup /app/uploads && exec gunicorn --bind 0.0.0.0:8050 --user appuser --group appgroup --timeout 300 --reload app:server"]
 

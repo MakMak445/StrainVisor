@@ -8,6 +8,7 @@ services:
       - "8050:8050"
     volumes:
       - shared_data:/app/uploads
+      - ./front_end:/app
     depends_on:
       - data_backend
       - video_backend
@@ -20,6 +21,8 @@ services:
       dockerfile: Dockerfile
     networks:
       - app-net
+    volumes:
+      - ./data_backend:/app
 
   video_backend:
     build:
@@ -27,6 +30,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - shared_data:/app/uploads
+      - ./video_backend:/app
     networks:
       - app-net
 
