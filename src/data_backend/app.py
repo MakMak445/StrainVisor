@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import base64
 import io
+from scipy.signal import find_peaks
 
 def parse_contents(contents, filename):
     _, content_string = contents.split(',')

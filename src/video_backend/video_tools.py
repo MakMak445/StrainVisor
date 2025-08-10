@@ -2,7 +2,7 @@ import cv2 as cv
 import numpy as np
 import matplotlib
 matplotlib.use('TkAgg')
-from scipy.signal import savgol_filter
+from scipy.signal import savgol_filter, find_peaks, welch
 import matplotlib.pyplot as plt
 
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/Footage_00098.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/Footage_00173.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/Footage_00139.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/Footage_00051.cine"
+vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/Footage_00051.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-051/Data/Actions/DropWeight/Task_0002/Footage_00076.cine"
 #vidpath = ""
 #vidpath = ""
@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/ForceData_00098.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-029/Data/Actions/DropWeight/Task_0038/ForceData_00173.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-031/Data/Actions/DropWeight/Task_0029/ForceData_00139.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/ForceData_00051.csv"
+file = "/home/makmak/cv2/Project/Data-20240930T100835Z-001/Data/Actions/DropWeight/Task_0082/ForceData_00051.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-051/Data/Actions/DropWeight/Task_0002/ForceData_00076.csv"
 #file = ""
 #file = ""
@@ -121,12 +121,9 @@ def find_impact_frame(time, volt, vidpath):
     ret, init_frame = cap.read()
     cap.set(cv.CAP_PROP_POS_FRAMES, 538)
     ret = cap.read()
-    #clahe = cv.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-    #enhanced
     blur = cv.GaussianBlur(cv.cvtColor(init_frame, cv.COLOR_BGR2GRAY), (11, 11), 0)
 
     _, frame_thresh = cv.threshold(blur, 0, 255, cv.THRESH_BINARY_INV+cv.THRESH_OTSU)
-                #frame_thresh = cv.adaptiveThreshold(blur, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 15, -1)
     init_contour, hierarchy = cv.findContours(frame_thresh, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)                       
     if len(init_contour) == 1:
         init_points = init_contour[0].reshape(-1, 2)
@@ -219,7 +216,7 @@ def find_impact_frame(time, volt, vidpath):
             if frame_guess_extrap==frame_guess:
                 frame_guess+=1
             else: frame_guess = frame_guess_extrap
-    return seed_contours, seed_frame, impact_frame_index, init_height
+    return seed_contours, seed_frame, impact_frame_index, init_height, vid_fps
 
 """
     Given:
@@ -317,7 +314,7 @@ def obtain_markers(frame, horiz_min, horiz_max, vert_min):
     return markers
 
 def generate_strain_graph(time, volt, vidpath):
-    seed_contours, seed_frame, impact_index, init_height = find_impact_frame(time, volt, vidpath)
+    seed_contours, seed_frame, impact_index, init_height, fps = find_impact_frame(time, volt, vidpath)
     hormin, hormax, vermin = obtain_crop_dimensions(seed_frame, seed_contours)
     cap = cv.VideoCapture(vidpath)
     cap.set(cv.CAP_PROP_POS_FRAMES, impact_index-1)
@@ -332,22 +329,60 @@ def generate_strain_graph(time, volt, vidpath):
                 base_index, base_height = obtain_base_index(markers) 
                 base_initialisation = True 
                 init_height = init_height-base_height
-                #print(init_height)
-                #print(base_index)
             if heights:
-                print(f"init height is {init_height}")
+                #print(f"init height is {init_height}")
                 height = obtain_height_from_markers(markers, base_index, init_height, heights[-1])
             else: height = obtain_height_from_markers(markers, base_index, init_height, init_height)
             if height: 
                 heights.append(height)
                 frames.append(i)
-            #print(base_index)
-            #print(i/25000, height)
         else: continue
+    time = np.array(frames)/fps
+    return time, (heights-init_height)/init_height
 
-    return frames, (heights-init_height)/init_height
+stress_time, volt = np.loadtxt(file, delimiter= ',',skiprows=2, unpack=True)
+stress_sample_rate = len(volt)/(stress_time[-1] - stress_time[0])
+stress_fft_freq, stress_fft_amp = welch(volt, stress_sample_rate)
+plt.plot(stress_fft_freq, stress_fft_amp, '.')
+plt.show()
 
-#time, volt = np.loadtxt(file, delimiter= ',',skiprows=2, unpack=True )
-#frames, strain = generate_strain_graph(time, volt, vidpath)
-#plt.plot(frames, strain, 'o')
-#plt.show()
+force_peaks, properties = find_peaks(volt, prominence=(None, None), width=(None, None))
+max_prom_force_idx = np.argmax(properties["prominences"])
+force_peak_max_idx = force_peaks[max_prom_force_idx]
+peak_width = properties["widths"][max_prom_force_idx]
+window_length = peak_width//3
+if window_length % 2 == 0:
+    window_length += 1
+smooth_volt = savgol_filter(volt, int(window_length), 3)
+print(window_length)
+plt.plot(stress_time, smooth_volt, '.')
+plt.plot(stress_time[force_peak_max_idx], volt[force_peak_max_idx], 'X', markersize=10, color='red', label='peak')
+plt.show()
+
+
+smooth_stress_peaks, properties = find_peaks(smooth_volt, prominence=(None, None))
+max_prom_smooth_stress_idx = np.argmax(properties["prominences"])
+smooth_stress_peak_max_idx = smooth_stress_peaks[max_prom_smooth_stress_idx]
+fig = plt.figure(figsize=(12, 6))
+plt.plot(stress_time, smooth_volt, '.', label = 'Data')
+plt.plot(stress_time[smooth_stress_peak_max_idx], smooth_volt[smooth_stress_peak_max_idx], 'X', markersize=10, color='red', label='peak')
+plt.legend()
+plt.show()
+
+fig = plt.figure(figsize=(12, 6))
+plt.plot(stress_time, volt, '.', label = 'Data')
+plt.plot(stress_time[force_peak_max_idx], volt[force_peak_max_idx], 'X', markersize=10, color='red', label='peak')
+plt.legend()
+plt.show()
+strain_time, strain = generate_strain_graph(stress_time, volt, vidpath)
+
+strain_peaks, properties = find_peaks(-1*strain, prominence=(None, None))
+max_prom_strain_idx = np.argmax(properties["prominences"])
+strain_peak_max_idx = strain_peaks[max_prom_strain_idx]
+fig = plt.figure(figsize=(12, 6))
+plt.plot(strain_time, strain, '.', label = 'Data')
+for peak in strain_peaks: plt.plot(strain_time[peak], strain[peak], 'X', markersize=10, color='red', label='peak')
+plt.legend()
+plt.show()
+
+strain_time[strain_peak_max_idx]
