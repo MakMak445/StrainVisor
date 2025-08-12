@@ -5,3 +5,4 @@ opencv_python==4.11.0.86
 pydantic==2.11.7
 scipy==1.16.0
 uvicorn==0.35.0
+statsmodels==0.14.0

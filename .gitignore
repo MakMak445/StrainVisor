@@ -210,6 +210,7 @@ __marimo__/
 .streamlit/secrets.toml
 
 /cv2_practice_files/
+/src/video_backend/trial_files.txt
 #  This directory is used for practice files in OpenCV tutorials.
 /Project/
 uploads/690df740-6707-11f0-81c2-00155dfb801a/Footage_00117.cine
