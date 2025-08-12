@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
 import matplotlib
-matplotlib.use('TkAgg')
+matplotlib.use('Agg')
 from scipy.signal import savgol_filter, find_peaks, welch, peak_widths
 from scipy.ndimage import median_filter
 import matplotlib.pyplot as plt
@@ -21,11 +21,9 @@ def video_properties(path: str):
 
 
 def force_tranducer_graph(time, volt):
-    time_np=np.array(time).astype(float)
-    time=time_np*10e-4
+    time=np.array(time).astype(float)
     if time[0] != 0.0: time = time - time[0]
-    volt_np=np.array(volt).astype(float)
-    volt=volt_np*10e-4
+    volt=np.array(volt).astype(float)
     force_time_total = time[-1]
     return time, volt, force_time_total
 
@@ -241,7 +239,7 @@ def obtain_height_from_markers(markers, base_index, init_height, prev_height):
 
 
 def obtain_crop_dimensions(seed_frame, seed_contours):
-    width, height =seed_frame.shape[:2]
+    height, width =seed_frame.shape[:2]
     sample_contour = seed_contours[0]
     sample_points = np.array(sample_contour.reshape(-1, 2))
     weight_contour = seed_contours[1]
@@ -292,7 +290,7 @@ def obtain_markers(frame, horiz_min, horiz_max, vert_min):
     markers = markers+1
     markers[unknown==255] = 0
     markers = cv.watershed(cropped,markers)
-    cropped[markers == -1] = [255,0,0]
+    #cropped[markers == -1] = [255,0,0]
     #cropped[markers == 1] = [0, 255, 0]
     #cropped[markers == 2] = [0, 0, 255]
     #cropped[markers == 3] = [0, 255, 255]
@@ -300,9 +298,9 @@ def obtain_markers(frame, horiz_min, horiz_max, vert_min):
     #cropped[markers == 5] = [255, 0, 255]
     #cropped[markers == 6] = [255, 102, 102]
     #cropped[markers == 7] = [102, 102, 255]
-    cv.imshow('thresh', cropped)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
+    #cv.imshow('thresh', cropped)
+    #cv.waitKey(0)
+    #cv.destroyAllWindows()
     return markers
 
 def generate_strain_graph(time, volt, vidpath):
@@ -451,7 +449,7 @@ def find_non_zero(list):
                 raise ValueError("No non zero strain in video detected")
 
 def obtain_stress_strain(stress_time, volt, vidpath, stress_time_multiplier=10e-3):
-    stress_time = stress_time*stress_time_multiplier
+    stress_time = np.array(stress_time)*stress_time_multiplier
     smooth_volt = savgol_filter(volt, 50, 3)
 
     # --- 1) Adaptive prominence threshold from baseline noise ---
@@ -460,10 +458,7 @@ def obtain_stress_strain(stress_time, volt, vidpath, stress_time_multiplier=10e-
     min_prom = noise_std # 3–5× is typical
 
 
-    smooth_stress_peaks, properties = find_peaks(smooth_volt, prominence=(None, None), width=(None, None), plateau_size=True)
-    top_n = 3
-    stress_top_10_prom = np.argsort(properties["prominences"])[-top_n:]
-    filtered_peaks = smooth_stress_peaks[stress_top_10_prom]
+
     mu, sigma = np.mean(baseline), np.std(baseline)
 
     # Hysteresis thresholds: low = "baseline", high = "definitely above baseline"

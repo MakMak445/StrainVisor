@@ -2,7 +2,6 @@ from dash import Dash, html, dcc, Output, Input, State
 import plotly.express as px
 import dash_uploader as du
 import requests
-from scipy.signal import find_peaks
 app = Dash(__name__)
 server = app.server
 VIDEO_API_URL = "http://video_backend:8000"
