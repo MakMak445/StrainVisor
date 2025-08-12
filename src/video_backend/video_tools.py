@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 import heapq
 from statsmodels import robust
 
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
-#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/Footage_00132.cine"
 vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/Footage_00132.cine"
+#vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/Footage_00065.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/Footage_00084.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/Footage_00082.cine"
 #vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/Footage_00098.cine"
@@ -21,9 +21,9 @@ vidpath = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropW
 #vidpath = ""
 #vidpath = ""
 
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/ForceData_00065.csv"
-#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/ForceData_00132.csv"
 file = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/ForceData_00065.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-002/Data/Actions/DropWeight/Task_0092/ForceData_00132.csv"
+#file = "/home/makmak/cv2/Project/Data-20240930T100835Z-005/Data/Actions/DropWeight/Task_0085/ForceData_00065.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-015/Data/Actions/DropWeight/Task_0059/ForceData_00084.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-019/Data/Actions/DropWeight/Task_0066/ForceData_00082.csv"
 #file = "/home/makmak/cv2/Project/Data-20240930T100835Z-021/Data/Actions/DropWeight/Task_0043/ForceData_00098.csv"
@@ -249,6 +249,7 @@ def obtain_base_index(init_markers):
     
 def obtain_height_from_markers(markers, base_index, init_height, prev_height):
     #prev_index = 0
+    bad_point=False
     obtained = False
     index = 0
     h, w = markers.shape
@@ -260,10 +261,12 @@ def obtain_height_from_markers(markers, base_index, init_height, prev_height):
             obtained = True
             height = height = base_index - index - prev_index
             if abs((height-prev_height)/prev_height)>=0.2:
-                return None
+                bad_point=True
+                return None, bad_point
+            else: bad_point = False
             if (base_index - index - prev_index)<=init_height:
-                return height
-            else: return init_height 
+                return height, bad_point
+            else: return init_height, bad_point
         else: 
             index += 1
 
@@ -326,11 +329,13 @@ def generate_strain_graph(time, volt, vidpath):
     seed_contours, seed_frame, impact_index, init_height, fps = find_impact_frame(time, volt, vidpath)
     hormin, hormax, vermin = obtain_crop_dimensions(seed_frame, seed_contours)
     cap = cv.VideoCapture(vidpath)
+    tot_frames = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
     cap.set(cv.CAP_PROP_POS_FRAMES, impact_index-1)
     heights = []
     base_initialisation = False
     frames = []
-    for i in range(impact_index-1, impact_index+150):
+    consect_bad = 0
+    for i in range(impact_index, tot_frames):
         ret, frame = cap.read()
         if ret:
             markers = obtain_markers(frame, hormin, hormax, vermin)
@@ -340,11 +345,16 @@ def generate_strain_graph(time, volt, vidpath):
                 init_height = init_height-base_height
             if heights:
                 #print(f"init height is {init_height}")
-                height = obtain_height_from_markers(markers, base_index, init_height, heights[-1])
-            else: height = obtain_height_from_markers(markers, base_index, init_height, init_height)
-            if height: 
+                height, bad_point = obtain_height_from_markers(markers, base_index, init_height, heights[-1])
+            else: height, bad_point = obtain_height_from_markers(markers, base_index, init_height, init_height)
+            if height and not bad_point: 
                 heights.append(height)
                 frames.append(i)
+                consect_bad = 0
+            elif bad_point:
+                consect_bad += 1
+                if consect_bad==10:
+                    break
         else: continue
     time = np.array(frames)/fps
     return time, (heights-init_height)/init_height
@@ -353,7 +363,7 @@ def first_contact_auto(
     t, y,
     baseline_frac=0.10,          # fraction of the start used as baseline
     min_consec=20,               # required consecutive samples above High
-    k_hi_bounds=(3.0, 1000.0),     # search range for High in sigma units
+    k_hi_bounds=(3.0, 10.0),     # search range for High in sigma units
     k_step=0.5,                  # search step for k_hi
     k_lo_margin=2.0,             # Low = (k_hi - k_lo_margin)*sigma above median
     slope_mult=4.0,              # derivative threshold = slope_mult * MAD(dy_baseline)
@@ -464,10 +474,6 @@ window_length = peak_width//3
 if window_length % 2 == 0:
     window_length += 1
 smooth_volt = savgol_filter(volt, 50, 3)
-#print(window_length)
-plt.plot(stress_time, smooth_volt, '.')
-#plt.plot(stress_time[force_peak_max_idx], volt[force_peak_max_idx], 'X', markersize=10, color='red', label='peak')
-plt.show()
 
 # --- 1) Adaptive prominence threshold from baseline noise ---
 baseline = smooth_volt[:int(0.1 * len(smooth_volt))]
@@ -485,73 +491,14 @@ mu, sigma = np.mean(baseline), np.std(baseline)
 k_lo, k_hi = 1.0, 4.0     # tune: 1.5–3.0 and 3.0–6.0 are typical
 low_thr  = mu + k_lo * sigma
 high_thr = mu + k_hi * sigma
-
-
-'''
-def left_cross_time_from_baseline(y, t, peak_idx, low, high):
-    """
-    Find the time the signal leaves the baseline (low) on the upslope
-    of a positive peak, with hysteresis (high) to avoid chattering.
-    Returns t_cross (float). If not found, returns t[0].
-    """
-    i_peak = int(peak_idx)
-
-    # Step 1: walk left until we're safely above high_thr (inside the upslope)
-    j = i_peak
-    while j > 0 and y[j] < high:
-        j -= 1
-    if j == 0:  # never reached high -> fallback
-        j = i_peak
-
-    # Step 2: from there, walk further left until <= low_thr (back to baseline)
-    i = j
-    while i > 0 and y[i] > low:
-        i -= 1
-
-    if i == 0:
-        # no clean crossing found; fallback to start
-        return float(t[0])
-
-    # Linear interpolation between i and i+1 to get precise crossing at 'low'
-    y0, y1 = y[i], y[i+1]
-    t0, t1 = t[i], t[i+1]
-    if y1 == y0:  # flat (unlikely after smoothing), just take t[i]
-        return float(t0)
-    alpha = (low - y0) / (y1 - y0)
-    return float(t0 + alpha * (t1 - t0))
-
-# --- Compute baseline->peak (uphill) time for your top-N peaks ---
-peak_times = stress_time[filtered_peaks]
-baseline_times = np.array([
-    left_cross_time_from_baseline(smooth_volt, stress_time, p, low_thr, high_thr)
-    for p in filtered_peaks
-])
-uphill_times = peak_times - baseline_times
-
-# Inspect
-for p, tb, tp, tu in zip(filtered_peaks, baseline_times, peak_times, uphill_times):
-    print(f"peak_idx={p:6d}  baseline_t={tb:.6f}s  peak_t={tp:.6f}s  uphill_time={tu:.6f}s")
-'''
-
-#fig = plt.figure(figsize=(12, 6))
-#plt.plot(stress_time, smooth_volt, '.', label = 'Data')
-#for peak in filtered_peaks: plt.plot(stress_time[peak], smooth_volt[peak], 'X', markersize=10, color='red', label='peak')
-#plt.legend()
-#plt.show()
-
-fig = plt.figure(figsize=(12, 6))
-#plt.plot(stress_time, volt, '.', label = 'Data')
-#plt.plot(stress_time[force_peak_max_idx], volt[force_peak_max_idx], 'X', markersize=10, color='red', label='peak')
-#plt.legend()
-#plt.show()
 strain_time, strain_unsmooth = generate_strain_graph(stress_time, volt, vidpath)
 strain = median_filter(strain_unsmooth, 3)
 strain_peaks, properties = find_peaks(-1*strain, prominence=(None, None), width=(None, None), plateau_size=True) #-1 factor because peaks is valley
-max_prom_strain_idx = np.argmax(properties["plateau_sizes"])
+max_prom_strain_idx = np.argmax((properties["plateau_sizes"]+properties["prominences"])/2)
 strain_peak_max_idx = properties["left_edges"][max_prom_strain_idx]
 fig = plt.figure(figsize=(12, 6))
 plt.plot(strain_time, strain, '.', label = 'Data')
-for peak in strain_peaks: plt.plot(strain_time[peak], strain[peak], 'X', markersize=10, color='red', label='pEEEak')
+for peak in strain_peaks: plt.plot(strain_time[peak], strain[peak], 'X', markersize=10, color='red', label='peak')
 plt.plot(strain_time[strain_peak_max_idx], strain[strain_peak_max_idx], 'X', markersize = 15, color='green')
 plt.legend()
 plt.show()
