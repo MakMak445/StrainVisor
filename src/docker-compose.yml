@@ -23,7 +23,7 @@ services:
       - app-net
     volumes:
       - ./data_backend:/app
-
+    ports: ["8000:8000"]
   video_backend:
     build:
       context: ./video_backend
@@ -31,8 +31,10 @@ services:
     volumes:
       - shared_data:/app/uploads
       - ./video_backend:/app
+      - /home/makmak/cv2:/home/makmak/cv2:ro
     networks:
       - app-net
+    ports: ["8001:8000"]
 
 networks:
   app-net:
