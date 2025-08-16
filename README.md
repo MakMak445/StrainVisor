@@ -68,14 +68,18 @@ This project is fully containerized. To get started, ensure you have Docker and 
 ## Project Structure
 
 StrainVisor/
-├── data_backend/
-│   ├── app.py
-│   └── Dockerfile
-├── video_backend/
-│   ├── app.py
-│   └── Dockerfile
-├── front_end/
-│   ├── app.py
-│   └── Dockerfile
-├── docker-compose.yml
-└── README.md
+|
+|-- data_backend/
+|   |-- app.py
+|   +-- Dockerfile
+|
+|-- video_backend/
+|   |-- app.py
+|   +-- Dockerfile
+|
+|-- front_end/
+|   |-- app.py
+|   +-- Dockerfile
+|
+|-- docker-compose.yml
++-- README.md
