@@ -66,6 +66,7 @@ This project is fully containerised. To get started, please make sure you have D
 ---
 
 ## Project Structure
+```
 ┌───────────────────────┐        ┌───────────────────────┐
 │     Data Backend      │        │     Video Backend     │
 │   (Sensor Parsing)    │        │  (CV & Sync Engine)   │
