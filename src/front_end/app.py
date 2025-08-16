@@ -2,7 +2,6 @@ from dash import Dash, html, dcc, Output, Input, State
 import plotly.express as px
 import dash_uploader as du
 import requests
-
 app = Dash(__name__)
 server = app.server
 VIDEO_API_URL = "http://video_backend:8000"
@@ -142,15 +141,15 @@ def generate_graph(n_clicks, filename: str, vidpath, filecontents: str, skiprows
             return
 
         video_data = video_response.json()
-        frames = video_data["frames"]
+        stress = video_data["stress"]
         strain = video_data["strain"]
-        if len(frames)!=len(strain):
+        if len(stress)!=len(strain):
             raise IndexError('Frames and Strain are not the same length')
         fig = px.scatter(
-        x=frames,
-        y=strain,
-        labels={'x': 'Frame Number', 'y': 'Strain'},
-        title='Strain vs. Frame Number'
+        x=strain,
+        y=stress,
+        labels={'x': 'Strain', 'y': 'Stress Density (mV)'},
+        title='Stress density vs Strain'
     )
         return fig
 

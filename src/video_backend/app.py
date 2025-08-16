@@ -14,9 +14,9 @@ app = FastAPI(title='Backend Video Analysis API')
 @app.post("/process-video/")
 def process_video(request: VideoAnalysisData):
     try:
-        frames, strain = vt.generate_strain_graph(request.time, request.volt, request.vidpath)
+        stress, strain = vt.obtain_stress_strain(request.time, request.volt, request.vidpath)
         return {
-            "frames": list(frames),
+            "stress": list(stress),
             "strain": list(strain),
             "Response":'Video analysed successfully' 
         }
