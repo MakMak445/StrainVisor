@@ -3,15 +3,15 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/your-username/StrainVisor)
 
-**An end-to-end, containerized web platform for calculating material stress-strain curves from high-speed impact footage and sensor data.** 🔬
+**An end-to-end, containerised web platform for calculating material stress-strain curves from high-speed impact footage and sensor data.** 🔬
 
 ---
 
 ## Overview
 
-StrainVisor is a complete data analysis platform designed to automate materials science research. It processes raw data from drop-weight impact tests—consisting of high-speed `.cine` video and `.csv` force-time data—to generate synchronized, accurate stress-strain curves.
+StrainVisor is a complete data analysis platform designed to automate materials science research. It processes raw data from drop-weight impact tests—consisting of high-speed `.cine` video and `.csv` force-time data—to generate synchronised, accurate stress-strain curves.
 
-The entire application is architected using a modern microservices approach and is fully containerized with Docker for easy deployment and scalability.
+The entire application is architected using a modern microservices approach and is fully containerised with Docker for easy deployment and scalability.
 
 ### System Architecture
 
@@ -30,10 +30,10 @@ The platform is divided into three independent, communicating services:
 ### Features
 
 * **Multi-Modal Data Ingestion:** Seamlessly upload and process high-speed video and corresponding time-series sensor data.
-* **Automated Impact Detection:** Intelligently identifies the precise frame of impact by synchronizing video contours with force-transducer signal events.
+* **Automated Impact Detection:** Intelligently identifies the precise frame of impact by synchronising video contours with force-transducer signal events.
 * **Advanced Image Segmentation:** Uses a robust **Watershed Algorithm** pipeline to isolate and track the deforming sample, even after contact with the impactor.
-* **Time-Series Synchronization:** Accurately aligns the strain data (derived from video) with the stress data (derived from sensors) to create a unified dataset.
-* **Interactive Visualization:** Renders the final stress-strain curve in the web UI for immediate analysis.
+* **Time-Series Synchronisation:** Accurately aligns the strain data (derived from video) with the stress data (derived from sensors) to create a unified dataset.
+* **Interactive Visualisation:** Renders the final stress-strain curve in the web UI for immediate analysis.
 
 ### Tech Stack
 
@@ -47,11 +47,11 @@ The platform is divided into three independent, communicating services:
 
 ## Installation & Usage
 
-This project is fully containerized. To get started, ensure you have Docker and Docker Compose installed.
+This project is fully containerised. To get started, please make sure you have Docker and Docker Compose installed.
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/your-username/StrainVisor.git](https://github.com/your-username/StrainVisor.git)
+    git clone [https://github.com/MakMak445/StrainVisor.git](https://github.com/MakMak445/StrainVisor.git)
     cd StrainVisor
     ```
 
