@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/your-username/StrainVisor)
 
-**An end-to-end, containerised web platform for calculating material stress-strain curves from high-speed impact footage and sensor data.** 🔬
+**An end-to-end, containerised web platform for calculating material stress-strain curves from high-speed impact footage and sensor data. Currently, it only gives the shape of the curve as the strain is not directly calculated as cross-sectional area and force-transducer coefficient are not taken into account** 🔬
 
 ---
 
@@ -19,9 +19,9 @@ The platform is divided into three independent, communicating services:
 
 
 
-1.  **Dash Frontend:** A user-friendly web interface for uploading experimental data, triggering analysis pipelines, and visualizing the final stress-strain curve.
-2.  **Data Analysis API:** A Python backend service (built with Flask/FastAPI) responsible for parsing, cleaning, and processing time-series force data from sensor logs.
-3.  **Video Analysis & Sync API:** The core computer vision engine. This powerful Python service implements advanced algorithms to analyze high-speed video, track material deformation, and synchronize the visual data with the force data to produce the final analytical result.
+1.  **Dash Frontend:** A user-friendly web interface for uploading experimental data, triggering analysis pipelines, and visualising the final stress-strain curve.
+2.  **Data Analysis API:** A Python backend service responsible for parsing, cleaning, and processing time-series force data from sensor logs.
+3.  **Video Analysis & Sync API:** The core computer vision engine. This powerful Python service implements advanced algorithms to analyse high-speed video, track material deformation, and synchronise the visual data with the force data to produce the final analytical result.
 
 ---
 
@@ -66,20 +66,18 @@ This project is fully containerised. To get started, please make sure you have D
 ---
 
 ## Project Structure
-
-StrainVisor/
-|
-|-- data_backend/
-|   |-- app.py
-|   +-- Dockerfile
-|
-|-- video_backend/
-|   |-- app.py
-|   +-- Dockerfile
-|
-|-- front_end/
-|   |-- app.py
-|   +-- Dockerfile
-|
-|-- docker-compose.yml
-+-- README.md
+┌───────────────────────┐        ┌───────────────────────┐
+│     Data Backend      │        │     Video Backend     │
+│   (Sensor Parsing)    │        │  (CV & Sync Engine)   │
+└──────────┬────────────┘        └────────── ┬───────────┘
+           │                                 │
+           └────────────────┬────────────────┘
+                            │
+                  ┌───────────────────────┐
+                  │      Frontend UI      │
+                  │   (Orchestrator)      │
+                  │                       │
+                  │     Dash + Plotly     │
+                  │       Port 8050       │
+                  └───────────────────────┘
+```
