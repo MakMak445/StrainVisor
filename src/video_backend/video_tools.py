@@ -461,9 +461,9 @@ def obtain_stress_strain(stress_time, volt, vidpath, stress_time_multiplier=10e-
     mu, sigma = np.mean(baseline), np.std(baseline)
 
     # Hysteresis thresholds: low = "baseline", high = "definitely above baseline"
-    k_lo, k_hi = 1.0, 4.0     # tune: 1.5–3.0 and 3.0–6.0 are typical
-    low_thr  = mu + k_lo * sigma
-    high_thr = mu + k_hi * sigma
+    #k_lo, k_hi = 1.0, 4.0     # tune: 1.5–3.0 and 3.0–6.0 are typical
+    #low_thr  = mu + k_lo * sigma
+    #high_thr = mu + k_hi * sigma
     strain_time, strain_unsmooth = generate_strain_graph(stress_time, volt, vidpath)
     #print(strain_unsmooth)
     strain = median_filter(strain_unsmooth, 3)
@@ -475,12 +475,12 @@ def obtain_stress_strain(stress_time, volt, vidpath, stress_time_multiplier=10e-
     else: 
         max_prom_strain_idx = np.argmax(properties["plateau_sizes"])
         strain_peak_max_idx = round((properties["left_edges"][max_prom_strain_idx] + properties["right_edges"][max_prom_strain_idx])/2)
-        fig = plt.figure(figsize=(12, 6))
-        plt.plot(strain_time, strain, '.', label = 'Data')
-        for peak in strain_peaks: plt.plot(strain_time[peak], strain[peak], 'X', markersize=10, color='red', label='peak')
-        plt.plot(strain_time[strain_peak_max_idx], strain[strain_peak_max_idx], 'X', markersize = 15, color='green')
-        plt.legend()
-        plt.show()
+        #fig = plt.figure(figsize=(12, 6))
+        #plt.plot(strain_time, strain, '.', label = 'Data')
+        #for peak in strain_peaks: plt.plot(strain_time[peak], strain[peak], 'X', markersize=10, color='red', label='peak')
+        #plt.plot(strain_time[strain_peak_max_idx], strain[strain_peak_max_idx], 'X', markersize = 15, color='green')
+        #plt.legend()
+        #plt.show()
         strain_start = find_non_zero(strain)
     strain_time_cropped = strain_time[strain_start:strain_peak_max_idx+1]
     #collision_time = strain_time_cropped[-1]-strain_time_cropped[0]
@@ -488,9 +488,9 @@ def obtain_stress_strain(stress_time, volt, vidpath, stress_time_multiplier=10e-
     strain_synced = strain[strain_start:strain_peak_max_idx+1]
     t_contact, info, stress_mean = first_contact_auto(stress_time, volt)
     smooth_volt = smooth_volt - stress_mean
-    print(f"Contact @ {t_contact:.6f}s; k_hi={info['k_hi']:.2f}, "
-        f"k_lo≈{info['k_lo_eff']:.2f}, σ={info['sigma']:.3g}")
-    first_stress_index = info["first_index"]
+    #print(f"Contact @ {t_contact:.6f}s; k_hi={info['k_hi']:.2f}, "
+    #    f"k_lo≈{info['k_lo_eff']:.2f}, σ={info['sigma']:.3g}")
+    #first_stress_index = info["first_index"]
 
     strain_time_cropped = strain_time_cropped - strain_time_cropped[0]
     stress_time_synced = stress_time - t_contact
