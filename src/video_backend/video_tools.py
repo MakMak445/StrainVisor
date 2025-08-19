@@ -494,7 +494,7 @@ def obtain_stress_strain(stress_time, volt, vidpath, stress_time_multiplier=10e-
 
     strain_time_cropped = strain_time_cropped - strain_time_cropped[0]
     stress_time_synced = stress_time - t_contact
-    stress_synced = np.interp(strain_time_cropped, stress_time_synced, smooth_volt, left = np.nan, right = np.nan)
+    stress_synced = np.interp(strain_time_cropped, stress_time_synced, smooth_volt, left = 0, right = np.nan)
 
     """plt.plot(strain_synced, stress_synced, 'o')
     plt.xlabel('Strain')
