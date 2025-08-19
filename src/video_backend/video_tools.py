@@ -5,7 +5,6 @@ matplotlib.use('Agg')
 from scipy.signal import savgol_filter, find_peaks, welch, peak_widths
 from scipy.ndimage import median_filter
 import matplotlib.pyplot as plt
-import heapq
 from statsmodels import robust
 
 
@@ -466,8 +465,8 @@ def obtain_stress_strain(stress_time, volt, vidpath, stress_time_multiplier=10e-
     low_thr  = mu + k_lo * sigma
     high_thr = mu + k_hi * sigma
     strain_time, strain_unsmooth = generate_strain_graph(stress_time, volt, vidpath)
-    print(strain_unsmooth)
-    strain = median_filter(strain_unsmooth, 3)
+    #print(strain_unsmooth)
+    strain = median_filter(strain_unsmooth, 3) - mu
     strain_peaks, properties = find_peaks(-1*strain, prominence=(None, None), width=(None, None), plateau_size=True) #-1 factor because peaks is valley
     if len(strain_peaks)==0:
         strain_start = find_non_zero(strain)
@@ -484,8 +483,8 @@ def obtain_stress_strain(stress_time, volt, vidpath, stress_time_multiplier=10e-
         plt.show()
         strain_start = find_non_zero(strain)
     strain_time_cropped = strain_time[strain_start:strain_peak_max_idx+1]
-    collision_time = strain_time_cropped[-1]-strain_time_cropped[0]
-    print(collision_time)
+    #collision_time = strain_time_cropped[-1]-strain_time_cropped[0]
+    #print(collision_time)
     strain_synced = strain[strain_start:strain_peak_max_idx+1]
     t_contact, info = first_contact_auto(stress_time, volt)
     print(f"Contact @ {t_contact:.6f}s; k_hi={info['k_hi']:.2f}, "
@@ -502,3 +501,5 @@ def obtain_stress_strain(stress_time, volt, vidpath, stress_time_multiplier=10e-
     plt.title('Stress-strain curve')
     plt.show()"""
     return stress_synced, strain_synced
+
+#AREA = 1.13 CM^2 = 
