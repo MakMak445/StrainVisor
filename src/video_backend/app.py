@@ -1,8 +1,16 @@
 from fastapi import FastAPI, HTTPException
 import video_tools as vt
 from pydantic import BaseModel
-import os
+# Assuming 'video_tools' is a custom module you have.
+import video_tools as vt
+import logging
 import shutil
+import os
+
+# Configure a logger for this application
+# It's good practice to set up proper logging for production services.
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("video_backend")
 
 class VideoAnalysisData(BaseModel):
     time: list
