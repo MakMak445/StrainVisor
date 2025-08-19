@@ -75,7 +75,7 @@ app.layout = html.Div([
                 ),
             ]),
             html.Div([
-                html.Label("Force transducer coefficient (N/mV):"),
+                html.Label("Force transducer coefficient (N/V):"),
                 dcc.Input(
                     id="force_transducer_coeff",
                     type="number",
