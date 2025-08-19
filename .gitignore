@@ -331,3 +331,4 @@ results/00174/StressStrain_00174.png
 src/errors.jsonl
 src/results.jsonl
 src/video_backend/tookie.py
+src/batch_analyze.py
