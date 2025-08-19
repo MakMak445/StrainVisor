@@ -437,7 +437,7 @@ def first_contact_auto(
         "baseline_len": int(n0), "min_consec": int(min_consec), 
         "first_index": i
     }
-    return t_cross, info
+    return t_cross, info, mu
 
 def find_non_zero(list):
     for i, t in enumerate(list):
@@ -466,7 +466,7 @@ def obtain_stress_strain(stress_time, volt, vidpath, stress_time_multiplier=10e-
     high_thr = mu + k_hi * sigma
     strain_time, strain_unsmooth = generate_strain_graph(stress_time, volt, vidpath)
     #print(strain_unsmooth)
-    strain = median_filter(strain_unsmooth, 3) - mu
+    strain = median_filter(strain_unsmooth, 3)
     strain_peaks, properties = find_peaks(-1*strain, prominence=(None, None), width=(None, None), plateau_size=True) #-1 factor because peaks is valley
     if len(strain_peaks)==0:
         strain_start = find_non_zero(strain)
@@ -486,7 +486,8 @@ def obtain_stress_strain(stress_time, volt, vidpath, stress_time_multiplier=10e-
     #collision_time = strain_time_cropped[-1]-strain_time_cropped[0]
     #print(collision_time)
     strain_synced = strain[strain_start:strain_peak_max_idx+1]
-    t_contact, info = first_contact_auto(stress_time, volt)
+    t_contact, info, stress_mean = first_contact_auto(stress_time, volt)
+    smooth_volt = smooth_volt - stress_mean
     print(f"Contact @ {t_contact:.6f}s; k_hi={info['k_hi']:.2f}, "
         f"k_lo≈{info['k_lo_eff']:.2f}, σ={info['sigma']:.3g}")
     first_stress_index = info["first_index"]
