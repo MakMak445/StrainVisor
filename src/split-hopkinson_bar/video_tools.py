@@ -6,24 +6,43 @@ from scipy.signal import savgol_filter, find_peaks, welch, peak_widths
 from scipy.ndimage import median_filter
 import matplotlib.pyplot as plt
 from statsmodels import robust
-import pytesseract
+import easyocr
 import re
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import time
+
+reader = easyocr.Reader(['en'], gpu=False)
+def merge_all_on_one_line(results):
+    """
+    Sorts and merges all detected text from EasyOCR, assuming it's on a single line.
+    """
+    # Sort results based on the x-coordinate of the top-left corner
+    results.sort(key=lambda r: r[0][0][0])
+    all_confidences = [res[2] for res in results]
+    
+    # Extract just the text from each sorted result
+    all_text = [res[1] for res in results]
+    
+    # Join all the text pieces into a single string
+    merged_text = "".join(all_text)
+    
+    return merged_text, np.mean(all_confidences)
 
 def prep_numeric_roi(gray):
     # Upscale to help the LSTM see stroke shapes
     big = cv.resize(gray, None, fx=3, fy=3, interpolation=cv.INTER_CUBIC)
+    blur = cv.GaussianBlur(big, (5,5), 0)
     # Otsu binarize; Tesseract prefers dark text on white
-    _, th = cv.threshold(big, 0, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)
+    _, th = cv.threshold(blur, 0, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)
     if th.mean() > 127: th = 255 - th
     # Slight close to beef up thin strokes
     th = cv.morphologyEx(th, cv.MORPH_CLOSE, np.ones((2,2), np.uint8), iterations=1)
     return th
-folder = Path("/home/makmak/cv2/Images/Camera Njord/Njord_09_31_52").expanduser()
 
-def longest_constant_gradient(frame_idx, t_ns, abs_tol_ns=5_000, rel_tol_ppm=300, mad_sigma=5.0, min_run=5):
+'''
+def longest_constant_gradient(frame_idx, t_ns, abs_tol_ns=10, rel_tol_ppm=300, mad_sigma=5.0, min_run=5):
     """
     frame_idx: 1D int array of frame numbers (0..N-1 or actual indices)
     t_ns:      1D int64 array of nanoseconds (relative to first frame)
@@ -79,43 +98,45 @@ def longest_constant_gradient(frame_idx, t_ns, abs_tol_ns=5_000, rel_tol_ppm=300
     inlier_frames = seg_mask.copy()
 
     return fps, period_ns, (int(frame_idx[left]), int(frame_idx[right])), inlier_frames
-
-def obtain_times(folder_path):
+'''
+def obtain_times(folder):
+    folder_path = Path(folder).expanduser()
     # specific extension(s)
     times = []
+    frames = []
+    true_frames = []
+    true_times = []
+    total_frame_num = sum(1 for _ in folder_path.glob("*.tiff"))
     for n, f in enumerate(sorted(folder_path.glob("*.tiff"))):
+        frames.append(n)
         test_frame = f
         frame = cv.imread(test_frame)
         img = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
         blur = cv.GaussianBlur(img, (3,3), 0)
-        #cv.imshow("Test_Frame", img)
-        #cv.waitKey(0)
-        #cv.destroyAllWindows()
         _, thresh = cv.threshold(blur, 254, 255, type=cv.THRESH_BINARY)
         Black = True
         index = 325
         while Black:
             for i in range(238, 250):
                 if img[i, index] > 250:
-                    #print(index)
                     Black = False
             index += 1
 
-        cropped = img[239:, (index-3):386]
+        cropped = img[239:, (index-2):385]
         resized = prep_numeric_roi(cropped)
-
-        text = pytesseract.image_to_string(resized, config= '--oem 3 --psm 8 -c classify_bln_numeric_mode=1 -c tessedit_char_whitelist=0123456789').strip()
-        times.append(int(text))
-        #print(n, (int(text)))
-    times = np.array(times)
-    frames = np.arange(len(times))
-    fps, period_ns, (i0, i1), inliers = longest_constant_gradient(frames, times, mad_sigma=1)
-    print(f"FPS ≈ {fps:.6f}  period ≈ {round(period_ns):.1f} ns")
-    print(f"Trusted run: frames {i0}..{i1}")
-
-    clean_times = np.arange(start=0, stop=period_ns*len(times),  step=period_ns)
-    return clean_times
-
+        results = reader.readtext(resized, allowlist='0123456789,')
+        text, prob = merge_all_on_one_line(results)
+        print(f'Detected text: "{text}" with confidence {prob:.2f}')
+        time_ns = int(text.replace(',',''))
+        if prob>= 0.995:
+            true_frames.append(f)
+            true_times.append(time_ns)
+            if len(true_frames) == 2 and len(true_times) == 2:
+                period = (true_times[-1] - true_times[0]) / (frames[-1] - frames[0])
+                frames = np.arange(total_frame_num)
+                times = period * frames
+                return frames, times
+    return ("No true timestamps found, cannot assess the time series with certainty")        
 
 
 def video_properties(path: str):
@@ -613,3 +634,10 @@ def obtain_stress_strain(stress_time, volt, vidpath, stress_time_multiplier=10e-
     plt.show()"""
     return stress_synced, strain_synced
 #AREA = 1.13 CM^2 = 
+
+start = time.time()
+frames, times = obtain_times("/home/makmak/cv2/Images/Camera Njord/Njord_11_09_09")
+print(f"times took {time.time()-start} seconds to process")
+
+print(frames)
+print(times)
