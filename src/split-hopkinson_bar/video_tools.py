@@ -633,11 +633,28 @@ def obtain_stress_strain(stress_time, volt, vidpath, stress_time_multiplier=10e-
     plt.title('Stress-strain curve')
     plt.show()"""
     return stress_synced, strain_synced
-#AREA = 1.13 CM^2 = 
 
+test_frame = "/home/makmak/cv2/Images/Camera Njord/Njord_09_31_52/Njord_09_31_52_001.tiff"
+img = cv.imread(test_frame)
+gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+cropped = gray[:220, :]
+#cv.imshow('gray', gray)
+#cv.waitKey(0)
+#cv.destroyAllWindows()
+
+blur = cv.medianBlur(cropped, 5, 0)
+norm = cv.normalize(blur, None, 0, 255, cv.NORM_MINMAX)
+retOTSU, dstOTSU = cv.threshold(norm, 0, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)
+cv.imshow('OTSU', dstOTSU)
+cv.waitKey(0)
+cv.destroyAllWindows()
+
+#AREA = 1.13 CM^2 = 
+'''
 start = time.time()
 frames, times = obtain_times("/home/makmak/cv2/Images/Camera Njord/Njord_11_09_09")
 print(f"times took {time.time()-start} seconds to process")
 
 print(frames)
 print(times)
+'''
