@@ -128,7 +128,7 @@ def obtain_times(folder):
         text, prob = merge_all_on_one_line(results)
         print(f'Detected text: "{text}" with confidence {prob:.2f}')
         time_ns = int(text.replace(',',''))
-        if prob>= 0.995:
+        if prob>= 0.999:
             true_frames.append(f)
             true_times.append(time_ns)
             if len(true_frames) == 2 and len(true_times) == 2:
