@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import time
 
-reader = easyocr.Reader(['en'], gpu=False)
+#reader = easyocr.Reader(['en'], gpu=False)
 def merge_all_on_one_line(results):
     """
     Sorts and merges all detected text from EasyOCR, assuming it's on a single line.
@@ -99,6 +99,7 @@ def longest_constant_gradient(frame_idx, t_ns, abs_tol_ns=10, rel_tol_ppm=300, m
 
     return fps, period_ns, (int(frame_idx[left]), int(frame_idx[right])), inlier_frames
 '''
+'''
 def obtain_times(folder):
     folder_path = Path(folder).expanduser()
     # specific extension(s)
@@ -137,7 +138,7 @@ def obtain_times(folder):
                 times = period * frames
                 return frames, times
     return ("No true timestamps found, cannot assess the time series with certainty")        
-
+'''
 
 def video_properties(path: str):
     cap=cv.VideoCapture(path)
@@ -383,7 +384,7 @@ def obtain_crop_dimensions(seed_frame, seed_contours):
     horizontal_min = sample_points[:, 0].min()
     return int(horizontal_min), int(horizontal_max), round(lowest_point_weight*0.95)
 
-def obtain_markers(frame, horiz_min, horiz_max, vert_min):
+def obtain_markers(frame, horiz_min, horiz_max, vert_max):
     """
     Given:
       - seed_frame: a BGR image where your objects (sample, weight, drop) are touching
@@ -394,43 +395,44 @@ def obtain_markers(frame, horiz_min, horiz_max, vert_min):
       - segmented: color‐coded BGR image showing each segment
     """
     #print(vert_min, horiz_min, horiz_max)
-    cropped = frame[vert_min:, horiz_min:horiz_max]
+    cropped = frame[:vert_max, horiz_min:horiz_max]
     grey = cv.cvtColor(cropped, cv.COLOR_BGR2GRAY)
     blur = cv.GaussianBlur(grey, (7,7), 0)
     norm = cv.normalize(blur, None, 0, 255, cv.NORM_MINMAX)
-    thresh = cv.adaptiveThreshold(norm, 255, cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY, 15, 10)
-    #cv.imshow('Threshold OTSU', thresh)
-    #cv.waitKey(0)
-    #cv.destroyAllWindows()
+    retOTSU, thresh = cv.threshold(norm, 150, 255, cv.THRESH_BINARY_INV)
+    #thresh = cv.adaptiveThreshold(norm, 255, )
+    cv.imshow('Threshold OTSU', thresh)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
     kernel = np.ones((5,5),np.uint8)
     opening = cv.morphologyEx(thresh,cv.MORPH_OPEN,kernel, iterations = 5)
     
     sure_bg = cv.dilate(opening,kernel,iterations=5)
     
     dist_transform, labels = cv.distanceTransformWithLabels(opening,cv.DIST_L2,cv.DIST_MASK_PRECISE, cv.DIST_LABEL_CCOMP)
-    ret, sure_fg = cv.threshold(dist_transform,0.4*dist_transform.max(),255,0)
+    ret, sure_fg = cv.threshold(dist_transform,0.08*dist_transform.max(),255,0)
     
     sure_fg = np.uint8(sure_fg)
     unknown = cv.subtract(sure_bg,sure_fg)
     ret, markers = cv.connectedComponents(sure_fg)
     disp = cv.convertScaleAbs(markers, alpha=255.0/markers.max())
-    #cv.imshow('markers', disp)
-    #cv.waitKey(0)
-    #cv.destroyAllWindows()
+    cv.imshow('markers', disp)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
     markers = markers+1
     markers[unknown==255] = 0
     markers = cv.watershed(cropped,markers)
-    #cropped[markers == -1] = [255,0,0]
-    #cropped[markers == 1] = [0, 255, 0]
-    #cropped[markers == 2] = [0, 0, 255]
-    #cropped[markers == 3] = [0, 255, 255]
-    #cropped[markers == 4] = [255, 255, 0]
-    #cropped[markers == 5] = [255, 0, 255]
-    #cropped[markers == 6] = [255, 102, 102]
-    #cropped[markers == 7] = [102, 102, 255]
-    #cv.imshow('thresh', cropped)
-    #cv.waitKey(0)
-    #cv.destroyAllWindows()
+    cropped[markers == -1] = [255,0,0]
+    cropped[markers == 1] = [0, 255, 0]
+    cropped[markers == 2] = [0, 0, 255]
+    cropped[markers == 3] = [0, 255, 255]
+    cropped[markers == 4] = [255, 255, 0]
+    cropped[markers == 5] = [255, 0, 255]
+    cropped[markers == 6] = [255, 102, 102]
+    cropped[markers == 7] = [102, 102, 255]
+    cv.imshow('thresh', cropped)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
     return markers
 
 def generate_strain_graph(time, volt, vidpath):
@@ -634,20 +636,41 @@ def obtain_stress_strain(stress_time, volt, vidpath, stress_time_multiplier=10e-
     plt.show()"""
     return stress_synced, strain_synced
 
-test_frame = "/home/makmak/cv2/Images/Camera Njord/Njord_09_31_52/Njord_09_31_52_001.tiff"
-img = cv.imread(test_frame)
+test_frame = "/home/makmak/cv2/Images/Camera Njord/Njord_09_31_52/Njord_09_31_52_002.tiff"
+img = cv.imread(test_frame)[:220, :]
 gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-cropped = gray[:220, :]
-#cv.imshow('gray', gray)
-#cv.waitKey(0)
-#cv.destroyAllWindows()
-
-blur = cv.medianBlur(cropped, 5, 0)
-norm = cv.normalize(blur, None, 0, 255, cv.NORM_MINMAX)
-retOTSU, dstOTSU = cv.threshold(norm, 0, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)
-cv.imshow('OTSU', dstOTSU)
+#norm = cv.normalize(gray, alpha=0, beta=255, cv.NORM_MINMAX)
+cropped_gray = gray[:220, :]
+cropped = img[:220, :]
+clah = cv.createCLAHE(2.0, (8,8))
+equalised = clah.apply(gray)
+cv.imshow('gray', gray)
 cv.waitKey(0)
 cv.destroyAllWindows()
+#obtain_markers(img, 0, 400, 400)
+blur = cv.GaussianBlur(equalised, (13,13), 5)
+edges = cv.Canny(blur, 19, 22)
+lines = cv.HoughLinesP(edges, 1, np.pi/1000, 40, minLineLength=40, maxLineGap=20)
+img_with_lines = img.copy()
+img_with_edges = img.copy()
+img_with_edges[edges == 255] = [0, 255, 0]
+if lines is not None:
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+        print(x1, y1, x2, y2)
+        cv.line(img_with_lines,(x1, y1), (x2, y2), (0, 255, 0), 1)
+else: print('No lines detected')
+
+cv.imshow('edges', img_with_edges)
+cv.imshow('lines', img_with_lines)
+cv.waitKey(0)
+cv.destroyAllWindows()
+
+#norm = cv.normalize(blur, None, 0, 255, cv.NORM_MINMAX)
+#retOTSU, dstOTSU = cv.threshold(norm, 155, 255, cv.THRESH_BINARY)
+#cv.imshow('OTSU', dstOTSU)
+#cv.waitKey(0)
+#cv.destroyAllWindows()
 
 #AREA = 1.13 CM^2 = 
 '''
