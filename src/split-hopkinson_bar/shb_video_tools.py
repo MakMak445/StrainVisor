@@ -5,7 +5,17 @@ from pathlib import Path
 import numpy as np
 import os
 """Assumptions Made:
-- The bars have a"""
+- We are only interested in the distances between the vertical ends of the bars (if oriented differently need to switch x and y in 
+obtain_bar_distance.)
+- The vertical parts of the bar have an angle less than 5 degrees to the vertical
+- Camera operates at a constant framerate
+- Apart from the bar lines, there are no other (near) vertical lines present within frames
+- constant ROI for timestamps (horizontally subject to change depending on number size)
+- Constant ROI for bars
+- Bars do not touch and neither bar occupies or goes past pixel 114
+- Frame filenames can be sorted such that they are numbered name_001, name_002, name_003, ...
+
+"""
 
 def merge_all_on_one_line(results):
     """
