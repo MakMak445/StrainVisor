@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
 import os
+import sys
+import pandas as pd
 """Assumptions Made:
 - We are only interested in the distances between the vertical ends of the bars (if oriented differently need to switch x and y in 
 obtain_bar_distance.)
@@ -127,32 +129,71 @@ def obtain_video_data(folder, times):
             del times[n]
     return times, distances, errors
 
+import os
+import sys
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# These functions are assumed to be defined elsewhere in your library
+# def obtain_times(folder, reader):
+#     ...
+# def obtain_video_data(folder, times):
+#     ...
+
 def analyse_folder(folder, output_dir, reader):
     """
-    Analyzes data from a folder, plots the results, and saves the plot
-    to the specified output directory.
+    Analyzes data from a folder, saves the data to a CSV file, plots the
+    results, and saves the plot to the specified output directory.
     """
-    # CHANGE 2: Remove this line ---> output_dir = 'results'
-    # The output directory is now passed in as an argument.
-
-    # --- Process the data ---
+    print(f"Processing data for '{folder}'...")
+    
+    # --- 1. Process the data ---
     times = obtain_times(folder, reader)
+
+    # Gracefully handle cases where no valid timestamps were found
+    if isinstance(times, str):
+        print(f"Skipping folder '{folder}': {times}", file=sys.stderr)
+        return
+
     times, distances, errors = obtain_video_data(folder, times)
 
-    # --- Generate the plot ---
-    plt.figure()
-    plt.plot(times, distances, 'o')
-    plt.title('Bar Distance against Time')
-    plt.xlabel('Time (ns)')
-    plt.ylabel('Distance (Pixels)')
-    plt.errorbar(times, distances, yerr=errors, fmt='o')
-
-    # --- Define the filename and save the figure ---
+    # --- 2. Save the data to a CSV file ---
     folder_name = os.path.basename(os.path.normpath(folder))
-    # This will now use the directory passed from your main script
-    save_path = os.path.join(output_dir, f'{folder_name}.png') 
+    csv_save_path = os.path.join(output_dir, f'{folder_name}.csv')
+    
+    try:
+        # Create a pandas DataFrame to hold the results
+        df = pd.DataFrame({
+            'Time (ns)': times,
+            'Distance (Pixels)': distances,
+            'Error (Pixels)': errors
+        })
+        
+        # Save the DataFrame to a CSV file, without the index column
+        df.to_csv(csv_save_path, index=False)
+        print(f"Data for '{folder}' saved to '{csv_save_path}'")
 
-    plt.savefig(save_path)
-    plt.close()
+    except Exception as e:
+        print(f"Could not save CSV for '{folder}': {e}", file=sys.stderr)
 
-    print(f"Plot for '{folder}' saved to '{save_path}'")
+
+    # --- 3. Generate and save the plot ---
+    # Changed the file extension from .png to .svg for a vector image
+    plot_save_path = os.path.join(output_dir, f'{folder_name}.svg')
+    
+    try:
+        plt.figure()
+        plt.plot(times, distances, 'o')
+        plt.title(f'Bar Distance vs. Time for {folder_name}')
+        plt.xlabel('Time (ns)')
+        plt.ylabel('Distance (Pixels)')
+        plt.errorbar(times, distances, yerr=errors, fmt='o', capsize=3)
+        
+        plt.savefig(plot_save_path)
+        print(f"Plot for '{folder}' saved to '{plot_save_path}'")
+
+    except Exception as e:
+        print(f"Could not save plot for '{folder}': {e}", file=sys.stderr)
+    finally:
+        # Close the plot to free up memory
+        plt.close()
