@@ -362,7 +362,7 @@ def first_contact_auto(
     n0 = max(50, int(baseline_frac * n))
     base = y_s[:n0]
     mu = np.median(base)
-    sigma = 1.4826 * robust.mad(base) + 1e-12  # robust σ
+    sigma = 1.4826 * robust.mad(base) + 1e-12
 
     # --- derivative & slope threshold from baseline dynamics
     dt = np.median(np.diff(t))

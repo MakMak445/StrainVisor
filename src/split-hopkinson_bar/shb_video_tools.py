@@ -6,6 +6,7 @@ import numpy as np
 import os
 import sys
 import pandas as pd
+from py2DIC.sources import Main
 """Assumptions Made:
 - We are only interested in the distances between the vertical ends of the bars (if oriented differently need to switch x and y in 
 obtain_bar_distance.)
@@ -18,7 +19,6 @@ obtain_bar_distance.)
 - Frame filenames can be sorted such that they are numbered name_001, name_002, name_003, ...
 
 """
-
 def merge_all_on_one_line(results):
     """
     Sorts and merges all detected text from EasyOCR, assuming it's on a single line.
@@ -89,8 +89,11 @@ def obtain_bar_distance(filepath):
     test_frame = filepath
     img = cv.imread(test_frame)[:220, :]
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-    clahe = cv.createCLAHE(2.0, (3,3))
+    clahe = cv.createCLAHE(1.5, (2,2))
     equalised = clahe.apply(gray)
+    #cv.imshow("contrast improved", equalised)
+    #cv.waitKey(0)
+    #cv.destroyAllWindows()
     blur = cv.GaussianBlur(equalised, (13,13), 10)
     edges = cv.Canny(blur, 19, 22)
     lines = cv.HoughLinesP(edges, 1, np.pi/5000, 40, minLineLength=40, maxLineGap=20)
@@ -110,8 +113,15 @@ def obtain_bar_distance(filepath):
                 cv.line(img_with_lines,(x1, y1), (x2, y2), (0, 255, 0), 1)
         left_pos = np.mean(left)
         right_pos = np.mean(right)
+        std_left = np.std(left)
+        std_right = np.std(right)
+        cropped = equalised[:, int(np.floor(left_pos-std_left)):int(np.ceil(right_pos+std_right))]
+        print(left_pos, right_pos)
+        clahe.apply(cropped)
+        #cv.imshow("cropped image", cropped)
+        #cv.waitKey(300)
         bar_distance = right_pos - left_pos
-        bar_std = np.std(left) + np.std(right)
+        bar_std = std_left + std_right
     else: raise RuntimeError("Could not locate any lines, removing datapoint")
 
     return bar_distance, bar_std
@@ -129,17 +139,6 @@ def obtain_video_data(folder, times):
             del times[n]
     return times, distances, errors
 
-import os
-import sys
-import pandas as pd
-import matplotlib.pyplot as plt
-
-# These functions are assumed to be defined elsewhere in your library
-# def obtain_times(folder, reader):
-#     ...
-# def obtain_video_data(folder, times):
-#     ...
-
 def analyse_folder(folder, output_dir, reader):
     """
     Analyzes data from a folder, saves the data to a CSV file, plots the
@@ -147,7 +146,6 @@ def analyse_folder(folder, output_dir, reader):
     """
     print(f"Processing data for '{folder}'...")
     
-    # --- 1. Process the data ---
     times = obtain_times(folder, reader)
 
     # Gracefully handle cases where no valid timestamps were found
@@ -191,9 +189,16 @@ def analyse_folder(folder, output_dir, reader):
         
         plt.savefig(plot_save_path)
         print(f"Plot for '{folder}' saved to '{plot_save_path}'")
+        print(f"mean error of {np.mean(errors)}")
 
     except Exception as e:
         print(f"Could not save plot for '{folder}': {e}", file=sys.stderr)
     finally:
         # Close the plot to free up memory
         plt.close()
+
+
+#folder_path = Path("/home/makmak/Projects/cv2/Images/Camera_Njord/Njord_09_57_18").expanduser()
+#for n, f in enumerate(sorted(folder_path.glob("*.tiff"))):
+#    obtain_bar_distance(f)
+#cv.destroyAllWindows()

@@ -211,6 +211,7 @@ __marimo__/
 
 /cv2_practice_files/
 /src/video_backend/trial_files.txt
+/Images/
 #  This directory is used for practice files in OpenCV tutorials.
 /Project/
 uploads/690df740-6707-11f0-81c2-00155dfb801a/Footage_00117.cine
@@ -11114,3 +11115,5 @@ src/split-hopkinson_bar/Camera_Njord_results/Njord_11_15_13.csv
 src/split-hopkinson_bar/Camera_Njord_results/Njord_11_15_13.svg
 src/split-hopkinson_bar/Camera_Njord_results/Njord_11_17_04.csv
 src/split-hopkinson_bar/Camera_Njord_results/Njord_11_17_04.svg
+src/split-hopkinson_bar/Trial/Njord_09_37_36.csv
+src/split-hopkinson_bar/Trial/Njord_09_37_36.svg
