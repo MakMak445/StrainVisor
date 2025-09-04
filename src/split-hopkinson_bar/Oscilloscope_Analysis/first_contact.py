@@ -97,18 +97,19 @@ def first_contact_auto(
         else:
             a = (low_thr - y0) / (y1 - y0)
             t_cross = float(t[i] + a * (t[i+1] - t[i]))
-
-    while i < n and y_s[i] > low_thr:
-        i += 1
+    k=j
+    while i < n and y_s[k] > high_thr:
+        k += 1
+        print(k)
     if i >= n:
         t_cross_back = float(t[n-1])
     else:
-        y0, y1 = y_s[i], y_s[i-1]
+        y0, y1 = y_s[k], y_s[k-1]
         if y1 == y0:
-            t_cross_back = float(t[i])
+            t_cross_back = float(t[k])
         else:
-            a = (low_thr - y1) / (y0 - y1)
-            t_cross_back = float(t[i] + a * (t[i]) - t[i-1])
+            a = (high_thr - y1) / (y0 - y1)
+            t_cross_back = float(t[k-1] + a * (t[k] - t[k-1]))
 
     info = {
         "mu": mu, "sigma": sigma,
@@ -118,7 +119,7 @@ def first_contact_auto(
         "baseline_len": int(n0), "min_consec": int(min_consec), 
         "first_index": i
     }
-    return t_cross, t_cross_back, mu
+    return t_cross, t_cross_back, mu, low_thr, high_thr
 
 
 data = pd.read_csv("/home/makmak/Projects/cv2/Images/Picoscope/picoscope csv/1d9bar_confined_Alu_Fine.csv", header=[0, 1])
@@ -126,11 +127,15 @@ data = pd.read_csv("/home/makmak/Projects/cv2/Images/Picoscope/picoscope csv/1d9
 #print(data.iloc[1, 0])
 data.columns = [f"{col[0]} {col[1]}" if col[1] != '' else col[0] for col in data.columns]
 #print(data)
-cross_time, cross_back_time, mu = first_contact_auto(data.loc[:, "Time (ms)"], data.loc[:, "Channel D (V)"])
+cross_time, cross_back_time, mu, low_thresh, high_thresh = first_contact_auto(data.loc[:, "Time (ms)"], data.loc[:, "Channel D (V)"])
 plt.figure()
 plt.plot(data.loc[:, "Time (ms)"], data.loc[:, "Channel D (V)"])
-plt.plot(data.loc[:, "Time (ms)"], data.loc[:, "Channel C (V)"])
+#plt.plot(data.loc[:, "Time (ms)"], data.loc[:, "Channel A (V)"])
 plt.axvline(cross_time, 0, 1)
 plt.axvline(cross_back_time, 0, 1)
+plt.axhline(-high_thresh, 0, 1)
+plt.axhline(high_thresh, 0, 1)
+plt.axhline(-low_thresh, 0, 1)
+plt.axhline(low_thresh, 0, 1)
 print(cross_time, cross_back_time)
 plt.show()
