@@ -4,6 +4,7 @@ from statsmodels import robust
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
+import os
 
 def first_contact_auto(
     t, y, pulse_num: int, property: str, ref_or_trans: str,
@@ -72,6 +73,10 @@ def first_contact_auto(
     index_rights = []
     if ref_or_trans == 'transmission':
         # --- find first confirmed event in full series
+        peaks, _ = find_peaks(y_s, prominence=(0.01, None), height=(None, None))
+        plt.plot(t, y)
+        for peak in peaks: plt.plot(t[peak], y[peak], 'X', markersize=10, color='red', label='peak')
+        plt.show()
         ah_full = (y_s > high_thr).astype(np.int8)
         run_full = np.convolve(ah_full, np.ones(min_consec, int), mode="same")
         idxs = np.where((run_full >= min_consec) & (ah_full == 1))[0]
@@ -89,6 +94,7 @@ def first_contact_auto(
             j2 = j + np.argmax(np.abs(dy[j:min(j+6, n)]))
             if np.abs(dy[j2]) >= slope_thr:
                 j = j2
+        j=peaks[0]
         i = j
         while i > 0 and y_s[i] > low_thr:
             i -= 1
@@ -124,14 +130,15 @@ def first_contact_auto(
         plt.show()
 
     elif ref_or_trans == 'reflection':
-        strain_peaks, properties = find_peaks(y_s, prominence=(0.1, None), width=(None, None), plateau_size=True)
-        #for peak in strain_peaks: 
-        #    plt.plot(t[peak], y[peak], 'X', markersize=10, color='red', label='peak')
-        #plt.show()
+        strain_peaks, properties = find_peaks(y_s, prominence=(0.1, None), width=(None, None), plateau_size=True, height=(5*high_thr, None), distance = 5000)
+        plt.plot(t,y)
+        for peak in strain_peaks: 
+            plt.plot(t[peak], y[peak], 'X', markersize=10, color='red', label='peak')
+        plt.show()
         proms = np.argsort(properties[property])
-        for pulse in range(-1, -1-pulse_num, -1):
-            prom1_strain_idx = proms[pulse]
-            j = round((properties["left_edges"][prom1_strain_idx] + properties["right_edges"][prom1_strain_idx])/2)
+        for peak in strain_peaks[:pulse_num]:
+            prom1_strain_idx = peak
+            j = peak#round((properties["left_edges"][prom1_strain_idx] + properties["right_edges"][prom1_strain_idx])/2)
             #plt.plot(t, abs(y), '.')
             #plt.plot(t[j], y_s[j], 'X', markersize=10, color='red', label='peak')
             #plt.show()
@@ -179,8 +186,9 @@ def first_contact_auto(
         "baseline_len": int(n0), "min_consec": int(min_consec), 
         "first_index": i
     }
+    index_lefts, index_rights, t_lefts, t_rights = np.sort(index_lefts), np.sort(index_rights), np.sort(t_lefts), np.sort(t_rights)
     return index_lefts, index_rights, t_lefts, t_rights, mu
-
+2
 '''
 data = pd.read_csv("/home/makmak/Projects/cv2/Images/Picoscope/picoscope csv/1d9bar_confined_Alu_Fine.csv", header=[0, 1])
 #print(data)
@@ -206,14 +214,19 @@ def overlay(filepath):
     data.columns = [f"{col[0]} {col[1]}" if col[1] != '' else col[0] for col in data.columns]
     reflect_index_lefts, reflect_index_rights, reflect_t_lefts, reflect_t_rights, reflect_mu = first_contact_auto(data.loc[:, "Time (ms)"], 
                                                                                                        data.loc[:, "Channel C (V)"], 
-                                                                                                       2, 'widths', 'reflection'
+                                                                                                       2, 'prominences', 'reflection'
                                                                                                        )
     data.replace()
     pulse_index_range = reflect_index_rights[0] - reflect_index_lefts[0]
     trans_index_lefts, trans_index_rights, trans_t_lefts, trans_t_rights, trans_mu = first_contact_auto(data.loc[:, "Time (ms)"], 
                                                                                                                           data.loc[:, "Channel D (V)"], 
-                                                                                                                          1, 'widths', 'transmission'
-                                                                                                                          )
+                                                                                                                          1, 'prominences', 'transmission'
+                                                                                                        )
+    if np.isclose(np.mean(reflect_index_rights), reflect_index_rights[0], atol = 100):
+        reflect_index_lefts, reflect_index_rights, reflect_t_lefts, reflect_t_rights, reflect_mu = first_contact_auto(data.loc[:, "Time (ms)"], 
+                                                                                                       data.loc[:, "Channel C (V)"], 
+                                                                                                       2, 'prominences', 'reflection'
+                                                                                                       )
     '''                                                                                                                         
     reflection_signal = data.loc[:, "Channel C (V)"].copy()
     time = data.loc[:, "Time (ms)"].copy()
@@ -230,6 +243,12 @@ def overlay(filepath):
         # --- Create the figure and axes for the overlay plot ---
     fig, ax = plt.subplots(figsize=(12, 7))
 
+   # This dictionary will hold the absolute time/signal pairs for the CSV.
+    pulse_data_for_csv = {}
+    # These will track the longest pulse to create the shared time axis.
+    max_pulse_length = 0
+    shared_time_axis = None
+
     # --- Process and Plot Reflection Pulses (Channel C) ---
     # Loop through each detected reflection pulse using its start and end indices
     for i, (idx_start, idx_end) in enumerate(zip(reflect_index_lefts, reflect_index_rights)):
@@ -243,6 +262,19 @@ def overlay(filepath):
         
         # Plot the isolated, corrected pulse
         ax.plot(time_normalized, signal_pulse, label=f'Reflection Pulse {i+1}')
+        # Define column names for this pulse's absolute time and signal.
+        time_col = f'Reflected Time {i+1} (ms)'
+        signal_col = f'Reflected Signal {i+1} (V)'
+
+        # Store the absolute time and signal values.
+        pulse_data_for_csv[time_col] = time_pulse.values
+        pulse_data_for_csv[signal_col] = signal_pulse.values
+
+        # Use the NORMALIZED time to find the longest pulse, which sets the 
+        # length for the "Shared Time" column.
+        if len(time_normalized) > max_pulse_length:
+            max_pulse_length = len(time_normalized)
+            shared_time_axis = time_normalized.values
 
 
     # --- Process and Plot Transmission Pulses (Channel D) ---
@@ -259,6 +291,18 @@ def overlay(filepath):
             
             # Plot the isolated, corrected pulse
             ax.plot(time_normalized, signal_pulse, label=f'Transmission Pulse {i+1}', linestyle='--')
+           # Define column names for this pulse's absolute time and signal.
+            time_col = f'Transmission Time {i+1} (ms)'
+            signal_col = f'Transmission Signal {i+1} (V)'
+
+            # Store the absolute time and signal values.
+            pulse_data_for_csv[time_col] = time_pulse.values
+            pulse_data_for_csv[signal_col] = signal_pulse.values
+
+            # Update the max length if this pulse is longer.
+            if len(time_normalized) > max_pulse_length:
+                max_pulse_length = len(time_normalized)
+                shared_time_axis = time_normalized.values
     else: 
         print('No valid transmission pulse detected')
         transmission = False
@@ -272,9 +316,29 @@ def overlay(filepath):
     ax.grid(True, linestyle=':', alpha=0.6)
 
     plt.tight_layout()
-    plt.show()
+    cont = input('Are these pulses acceptable (Do not worry about order of pulses)? (Y/N)').lower().strip()
+    if cont == 'y':
+        output_directory = "/home/makmak/Projects/cv2/src/split-hopkinson_bar/Oscilloscope_Analysis/overlay_results"
+        new_filename = os.path.splitext(os.path.basename(filepath))[0] + ".svg"
+        output_path = os.path.join(output_directory, new_filename)
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        # 1. Create the final DataFrame, starting with the zero-based "Shared Time" axis.
+        processed_df = pd.DataFrame({'Shared Time (ms)': shared_time_axis})
 
-    
+        # 2. Add the pairs of absolute time and signal columns to the DataFrame.
+        # Shorter pulses will be padded with 'NaN' to match the longest pulse.
+        for col_name, data_values in pulse_data_for_csv.items():
+            padded_data = pd.Series(data_values).reindex(range(max_pulse_length))
+            processed_df[col_name] = padded_data
 
+        # 3. Construct the output path for the new CSV file.
+        csv_filename = os.path.splitext(os.path.basename(filepath))[0] + "_processed_pulses.csv"
+        csv_output_path = os.path.join(output_directory, csv_filename)
 
-overlay("/home/makmak/Projects/cv2/Images/Picoscope/picoscope csv/1d9bar_confined_Plastic.csv")
+        # 4. Save the DataFrame to the CSV file.
+        processed_df.to_csv(csv_output_path, index=False)
+        print(f"\nProcessed pulse data saved to: {csv_output_path}")
+        plt.show()
+    else:
+        plt.show()
+        return 
