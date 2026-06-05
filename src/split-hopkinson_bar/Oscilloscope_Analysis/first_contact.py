@@ -1,47 +1,52 @@
+import os
+import glob
+import sys
 import numpy as np
-from scipy.signal import savgol_filter
-from statsmodels import robust
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.signal import find_peaks
-import os
+from scipy.signal import savgol_filter, find_peaks
+from statsmodels import robust
 
+# ==========================================
+# HARDWARE CALIBRATION CONSTANTS
+# ==========================================
+V_EX = 10.0          # Excitation Voltage (V)
+GAUGE_FACTOR = 2.0   # Strain Gauge Factor
+GAIN_C = 100.0       # Amplifier Gain for Channel C (Incident/Reflected)
+GAIN_D = 100.0       # Amplifier Gain for Channel D (Transmitted)
+
+# ==========================================
+# 1. PEAK DETECTION & BASELINE (ORIGINAL)
+# ==========================================
 def first_contact_auto(
     t, y, pulse_num: int, property: str, ref_or_trans: str,
-    baseline_frac=0.1,          # fraction of the start used as baseline
-    min_consec=1,               # required consecutive samples above High
-    k_hi_bounds=(3.0, 10.0),     # search range for High in sigma units
-    k_step=0.5,                  # search step for k_hi
-    k_lo_margin=2.0,             # Low = (k_hi - k_lo_margin)*sigma above median
-    slope_mult=4.0,              # derivative threshold = slope_mult * MAD(dy_baseline)
-    sg_win=51, sg_poly=2,        # Savitzky–Golay smoothing (odd window)
-    prominence=(0.1, None), width=(None, None), plateau_size=True #find_peaks parameters
+    baseline_frac=0.1,          
+    min_consec=1,               
+    k_hi_bounds=(3.0, 10.0),    
+    k_step=0.5,                  
+    k_lo_margin=2.0,             
+    slope_mult=4.0,              
+    sg_win=51, sg_poly=2,        
+    prominence=(0.1, None), width=(None, None), plateau_size=True 
 ):
-    """
-    Auto-tune hysteresis thresholds from baseline and return first-contact time.
-    Returns: t_contact, info (dict with thresholds/diagnostics)
-    """
     n = len(y)
     if n < 10:
         return t[0], {"reason": "too_short"}
 
-    # --- zero-phase smoothing (small window)
     sg_win = int(sg_win) | 1
     y_s = savgol_filter(y, sg_win, sg_poly, mode="interp")
 
-    # --- baseline window
     n0 = max(50, int(baseline_frac * n))
     base = y_s[:n0]
     mu = np.median(base)
     sigma = 1.4826 * robust.mad(base) + 1e-12
     y_s = abs(y_s - mu) + mu
-    # --- derivative & slope threshold from baseline dynamics
+    
     dt = np.median(np.diff(t))
     dy = savgol_filter(y_s, sg_win, sg_poly, deriv=1, delta=dt, mode="interp")
     slope_sigma = 1.4826 * robust.mad(dy[:n0]) + 1e-12
     slope_thr = slope_mult * slope_sigma
 
-    # --- choose the smallest k_hi with ZERO false runs in baseline
     def has_false_run(k_hi):
         high = mu + k_hi * sigma
         ah = (base > high).astype(np.int8)
@@ -56,27 +61,21 @@ def first_contact_auto(
             chosen_k_hi = k
             break
 
-    # Fallback: if even huge k_hi still has runs (super noisy baseline),
-    # switch to empirical-quantile High at 99.9% of baseline
     if chosen_k_hi is None:
         high = float(np.quantile(base, 0.999))
         chosen_k_hi = (high - mu) / sigma
     high_thr = mu + chosen_k_hi * sigma
 
-    # --- choose Low below High but still well above baseline
-    # Low = max(median + 1.5σ, High - k_lo_margin*σ) but < High - 0.5σ
     low_thr = max(mu + 1.5 * sigma, high_thr - k_lo_margin * sigma)
     low_thr = min(low_thr, high_thr - 0.5 * sigma)
+    
     t_lefts = []
     t_rights = []
     index_lefts = []
     index_rights = []
+    
     if ref_or_trans == 'transmission':
-        # --- find first confirmed event in full series
         peaks, _ = find_peaks(y_s, prominence=(0.01, None), height=(None, None))
-        plt.plot(t, y)
-        for peak in peaks: plt.plot(t[peak], y[peak], 'X', markersize=10, color='red', label='peak')
-        plt.show()
         ah_full = (y_s > high_thr).astype(np.int8)
         run_full = np.convolve(ah_full, np.ones(min_consec, int), mode="same")
         idxs = np.where((run_full >= min_consec) & (ah_full == 1))[0]
@@ -88,8 +87,6 @@ def first_contact_auto(
             }
 
         j = int(idxs[0])
-
-        # slope check: if too flat, nudge forward to a steeper point nearby
         if np.abs(dy[j]) < slope_thr:
             j2 = j + np.argmax(np.abs(dy[j:min(j+6, n)]))
             if np.abs(dy[j2]) >= slope_thr:
@@ -112,7 +109,6 @@ def first_contact_auto(
         k=j
         while k < n and y_s[k] > low_thr:
             k += 1
-            #print(k)
         if i >= n:
             t_cross_back = float(t[n-1])
         else:
@@ -124,26 +120,13 @@ def first_contact_auto(
                 t_cross_back = float(t[k-1] + a * (t[k] - t[k-1]))
                 index_rights.append(k)
                 t_rights.append(t_cross_back)
-        plt.plot(t, y)
-        plt.axvline(t[i], color='red')
-        plt.axvline(t[k], color='red')
-        plt.show()
 
     elif ref_or_trans == 'reflection':
         strain_peaks, properties = find_peaks(y_s, prominence=(0.1, None), width=(None, None), plateau_size=True, height=(5*high_thr, None), distance = 5000)
-        plt.plot(t,y)
-        for peak in strain_peaks: 
-            plt.plot(t[peak], y[peak], 'X', markersize=10, color='red', label='peak')
-        plt.show()
         proms = np.argsort(properties[property])
         for peak in strain_peaks[:pulse_num]:
             prom1_strain_idx = peak
-            j = peak#round((properties["left_edges"][prom1_strain_idx] + properties["right_edges"][prom1_strain_idx])/2)
-            #plt.plot(t, abs(y), '.')
-            #plt.plot(t[j], y_s[j], 'X', markersize=10, color='red', label='peak')
-            #plt.show()
-            # --- walk back to Low and interpolate precise crossing
-            
+            j = peak
             i = j
             while i > 0 and y_s[i] > low_thr:
                 i -= 1
@@ -161,7 +144,6 @@ def first_contact_auto(
             k=j
             while k < n and y_s[k] > low_thr:
                 k += 1
-                #print(k)
             if i >= n:
                 t_cross_back = float(t[n-1])
             else:
@@ -173,172 +155,149 @@ def first_contact_auto(
                     t_cross_back = float(t[k-1] + a * (t[k] - t[k-1]))
                     index_rights.append(k)
                     t_rights.append(t_cross_back)
-                    plt.plot(t, y)
-                    plt.axvline(t[i], color='red')
-                    plt.axvline(t[k], color='red')
-                    plt.show()
-    else: raise RuntimeError("Invalid entry for parameter ref_or_trans, must enter either reflection or transmission")
-    info = {
-        "mu": mu, "sigma": sigma,
-        "slope_sigma": slope_sigma, "slope_thr": slope_thr,
-        "k_hi": float(chosen_k_hi), "k_lo_eff": float((low_thr - mu) / sigma),
-        "low_thr": float(low_thr), "high_thr": float(high_thr),
-        "baseline_len": int(n0), "min_consec": int(min_consec), 
-        "first_index": i
-    }
+    else: 
+        raise RuntimeError("Invalid entry for parameter ref_or_trans, must enter either reflection or transmission")
+        
     index_lefts, index_rights, t_lefts, t_rights = np.sort(index_lefts), np.sort(index_rights), np.sort(t_lefts), np.sort(t_rights)
     return index_lefts, index_rights, t_lefts, t_rights, mu
-2
-'''
-data = pd.read_csv("/home/makmak/Projects/cv2/Images/Picoscope/picoscope csv/1d9bar_confined_Alu_Fine.csv", header=[0, 1])
-#print(data)
-#print(data.iloc[1, 0])
-data.columns = [f"{col[0]} {col[1]}" if col[1] != '' else col[0] for col in data.columns]
-#print(data)
-cross_time, cross_back_time, low_thresh, high_thresh = first_contact_auto(data.loc[:, "Time (ms)"], data.loc[:, "Channel C (V)"])
-plt.figure()
-plt.plot(data.loc[:, "Time (ms)"], data.loc[:, "Channel D (V)"])
-#plt.plot(data.loc[:, "Time (ms)"], data.loc[:, "Channel A (V)"])
-plt.axvline(cross_time, 0, 1)
-plt.axvline(cross_back_time, 0, 1)
-plt.axhline(-high_thresh, 0, 1)
-plt.axhline(high_thresh, 0, 1)
-plt.axhline(-low_thresh, 0, 1)
-plt.axhline(low_thresh, 0, 1)
-print(cross_time, cross_back_time)
-plt.show()
-'''
 
-def overlay(filepath):
+# ==========================================
+# 2. PROCESSING AND OVERLAY FUNCTION
+# ==========================================
+def process_and_overlay(filepath, output_directory):
+    print(f"\nProcessing: {os.path.basename(filepath)}")
     data = pd.read_csv(filepath, header=[0, 1])
     data.columns = [f"{col[0]} {col[1]}" if col[1] != '' else col[0] for col in data.columns]
-    reflect_index_lefts, reflect_index_rights, reflect_t_lefts, reflect_t_rights, reflect_mu = first_contact_auto(data.loc[:, "Time (ms)"], 
-                                                                                                       data.loc[:, "Channel C (V)"], 
-                                                                                                       2, 'prominences', 'reflection'
-                                                                                                       )
-    data.replace()
-    pulse_index_range = reflect_index_rights[0] - reflect_index_lefts[0]
-    trans_index_lefts, trans_index_rights, trans_t_lefts, trans_t_rights, trans_mu = first_contact_auto(data.loc[:, "Time (ms)"], 
-                                                                                                                          data.loc[:, "Channel D (V)"], 
-                                                                                                                          1, 'prominences', 'transmission'
-                                                                                                        )
-    if np.isclose(np.mean(reflect_index_rights), reflect_index_rights[0], atol = 100):
-        reflect_index_lefts, reflect_index_rights, reflect_t_lefts, reflect_t_rights, reflect_mu = first_contact_auto(data.loc[:, "Time (ms)"], 
-                                                                                                       data.loc[:, "Channel C (V)"], 
-                                                                                                       2, 'prominences', 'reflection'
-                                                                                                       )
-    '''                                                                                                                         
-    reflection_signal = data.loc[:, "Channel C (V)"].copy()
-    time = data.loc[:, "Time (ms)"].copy()
-    #reflection_signal[pulse_start_index:pulse_end_index] = reflect_base
-    strain_peaks, properties = find_peaks(abs(reflection_signal), prominence=(0.1, None), width=(None, None), plateau_size=True)
-    proms = np.argsort(properties["prominences"])
-    prom1_strain_idx = proms[-1]
-    prom2_strain_idx = proms[-2]
-    '''
-    #fig = plt.figure(figsize=(12, 6))
-    #plt.plot(time, reflection_signal, '.', label = 'Data')
-    #for peak in strain_peaks: plt.plot(time[peak], reflection_signal[peak], 'X', markersize=10, color='red', label='peak')
+    
+    # --- AUTO-DETECT UNITS AND SCALING ---
+    if "Channel C (V)" in data.columns:
+        col_c, scale_c = "Channel C (V)", 1.0
+    elif "Channel C (mV)" in data.columns:
+        col_c, scale_c = "Channel C (mV)", 1000.0
+    else:
+        print(f"Skipping {filepath}: Could not find Channel C in V or mV.")
+        return
 
-        # --- Create the figure and axes for the overlay plot ---
+    if "Channel D (V)" in data.columns:
+        col_d, scale_d = "Channel D (V)", 1.0
+    elif "Channel D (mV)" in data.columns:
+        col_d, scale_d = "Channel D (mV)", 1000.0
+    else:
+        print(f"Skipping {filepath}: Could not find Channel D in V or mV.")
+        return
+
+    # 1. Get Indices and Baselines using dynamically found column names
+    ref_idx_L, ref_idx_R, ref_t_L, ref_t_R, reflect_mu = first_contact_auto(
+        data["Time (ms)"], data[col_c], 2, 'prominences', 'reflection'
+    )
+    
+    trans_idx_L, trans_idx_R, trans_t_L, trans_t_R, trans_mu = first_contact_auto(
+        data["Time (ms)"], data[col_d], 1, 'prominences', 'transmission'
+    )
+
+    if len(ref_idx_L) < 2 or len(trans_idx_L) < 1:
+        print(f"Skipping {filepath}: Could not detect all 3 required pulses.")
+        return
+
+    # --- Setup Plot and Dictionary for CSV (Original Logic) ---
     fig, ax = plt.subplots(figsize=(12, 7))
-
-   # This dictionary will hold the absolute time/signal pairs for the CSV.
     pulse_data_for_csv = {}
-    # These will track the longest pulse to create the shared time axis.
     max_pulse_length = 0
     shared_time_axis = None
 
-    # --- Process and Plot Reflection Pulses (Channel C) ---
-    # Loop through each detected reflection pulse using its start and end indices
-    for i, (idx_start, idx_end) in enumerate(zip(reflect_index_lefts, reflect_index_rights)):
-        # Slice the time segment for this specific pulse
+    # --- Process Reflection Pulses (Channel C) ---
+    for i, (idx_start, idx_end) in enumerate(zip(ref_idx_L, ref_idx_R)):
         time_pulse = data.loc[idx_start:idx_end, "Time (ms)"]
-        # Normalize the time segment to start at 0
         time_normalized = time_pulse - time_pulse.iloc[0]
-
-        # Slice the signal segment and correct its baseline
-        signal_pulse = abs(data.loc[idx_start:idx_end, "Channel C (V)"] - reflect_mu)
         
-        # Plot the isolated, corrected pulse
-        ax.plot(time_normalized, signal_pulse, label=f'Reflection Pulse {i+1}')
-        # Define column names for this pulse's absolute time and signal.
-        time_col = f'Reflected Time {i+1} (ms)'
-        signal_col = f'Reflected Signal {i+1} (V)'
-
-        # Store the absolute time and signal values.
-        pulse_data_for_csv[time_col] = time_pulse.values
-        pulse_data_for_csv[signal_col] = signal_pulse.values
-
-        # Use the NORMALIZED time to find the longest pulse, which sets the 
-        # length for the "Shared Time" column.
+        # Extract raw, subtract baseline, apply scale (V vs mV), convert to Strain
+        raw_v = abs(data.loc[idx_start:idx_end, col_c] - reflect_mu) / scale_c
+        strain_pulse = ((raw_v / GAIN_C) * (2 / GAUGE_FACTOR)) / V_EX
+        
+        label_name = 'Incident Pulse' if i == 0 else f'Reflected Pulse {i}'
+        ax.plot(time_normalized, strain_pulse, label=label_name)
+        
+        pulse_data_for_csv[f'{label_name} Time (ms)'] = time_pulse.values
+        pulse_data_for_csv[f'{label_name} Strain'] = strain_pulse.values
+        
         if len(time_normalized) > max_pulse_length:
             max_pulse_length = len(time_normalized)
             shared_time_axis = time_normalized.values
 
+    # --- Process Transmission Pulses (Channel D) ---
+    for i, (idx_start, idx_end) in enumerate(zip(trans_idx_L, trans_idx_R)):
+        time_pulse = data.loc[idx_start:idx_end, "Time (ms)"]
+        time_normalized = time_pulse - time_pulse.iloc[0]
+        
+        # Extract raw, subtract baseline, apply scale (V vs mV), convert to Strain
+        raw_v = abs(data.loc[idx_start:idx_end, col_d] - trans_mu) / scale_d
+        strain_pulse = ((raw_v / GAIN_D) * (2 / GAUGE_FACTOR)) / V_EX
+        
+        ax.plot(time_normalized, strain_pulse, label=f'Transmission Pulse {i+1}', linestyle='--')
+        
+        pulse_data_for_csv[f'Transmission {i+1} Time (ms)'] = time_pulse.values
+        pulse_data_for_csv[f'Transmission {i+1} Strain'] = strain_pulse.values
+        
+        if len(time_normalized) > max_pulse_length:
+            max_pulse_length = len(time_normalized)
+            shared_time_axis = time_normalized.values
 
-    # --- Process and Plot Transmission Pulses (Channel D) ---
-    # Loop through each detected transmission pulse
-    if trans_t_lefts[0]<=reflect_t_rights[1]:
-        transmission = True
-        for i, (idx_start, idx_end) in enumerate(zip(trans_index_lefts, trans_index_rights)):
-            # Slice and normalize the time segment
-            time_pulse = data.loc[idx_start:idx_end, "Time (ms)"]
-            time_normalized = time_pulse - time_pulse.iloc[0]
-
-            # Slice the signal and correct its baseline
-            signal_pulse = abs(data.loc[idx_start:idx_end, "Channel D (V)"] - trans_mu)
-            
-            # Plot the isolated, corrected pulse
-            ax.plot(time_normalized, signal_pulse, label=f'Transmission Pulse {i+1}', linestyle='--')
-           # Define column names for this pulse's absolute time and signal.
-            time_col = f'Transmission Time {i+1} (ms)'
-            signal_col = f'Transmission Signal {i+1} (V)'
-
-            # Store the absolute time and signal values.
-            pulse_data_for_csv[time_col] = time_pulse.values
-            pulse_data_for_csv[signal_col] = signal_pulse.values
-
-            # Update the max length if this pulse is longer.
-            if len(time_normalized) > max_pulse_length:
-                max_pulse_length = len(time_normalized)
-                shared_time_axis = time_normalized.values
-    else: 
-        print('No valid transmission pulse detected')
-        transmission = False
-
-    # --- Final Touches ---
+    # --- Final Plot Touches ---
     ax.axhline(0, color='black', linestyle=':', linewidth=1, label='Common Baseline')
-    ax.set_title('Overlay of Detected Pulses')
+    ax.set_title(f"Threshold Alignment: {os.path.basename(filepath)}")
     ax.set_xlabel('Time Since Pulse Start (ms)')
-    ax.set_ylabel('Baseline-Corrected Voltage (V)')
+    ax.set_ylabel('Strain (\u03BC\u03B5)')
     ax.legend()
     ax.grid(True, linestyle=':', alpha=0.6)
-
     plt.tight_layout()
-    cont = input('Are these pulses acceptable (Do not worry about order of pulses)? (Y/N)').lower().strip()
-    if cont == 'y':
-        output_directory = "/home/makmak/Projects/cv2/src/split-hopkinson_bar/Oscilloscope_Analysis/overlay_results"
-        new_filename = os.path.splitext(os.path.basename(filepath))[0] + ".svg"
-        output_path = os.path.join(output_directory, new_filename)
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')
-        # 1. Create the final DataFrame, starting with the zero-based "Shared Time" axis.
+    
+    # Non-blocking user verification (Comment out the input() lines below for full automation)
+    plt.draw()
+    plt.pause(0.1) 
+    
+    cont = input('Save this data? (Y/N/Quit): ').strip().lower()
+    
+    if cont == 'q' or cont == 'quit':
+        print("Batch processing aborted by user.")
+        plt.close()
+        sys.exit(0)
+    elif cont == 'y':
+        os.makedirs(output_directory, exist_ok=True)
+        base_name = os.path.splitext(os.path.basename(filepath))[0]
+        
+        # Save Plot
+        plt.savefig(os.path.join(output_directory, f"{base_name}_threshold.svg"), dpi=300)
+        
+        # Save CSV (Original NaN padding method)
         processed_df = pd.DataFrame({'Shared Time (ms)': shared_time_axis})
-
-        # 2. Add the pairs of absolute time and signal columns to the DataFrame.
-        # Shorter pulses will be padded with 'NaN' to match the longest pulse.
         for col_name, data_values in pulse_data_for_csv.items():
             padded_data = pd.Series(data_values).reindex(range(max_pulse_length))
             processed_df[col_name] = padded_data
-
-        # 3. Construct the output path for the new CSV file.
-        csv_filename = os.path.splitext(os.path.basename(filepath))[0] + "_processed_pulses.csv"
-        csv_output_path = os.path.join(output_directory, csv_filename)
-
-        # 4. Save the DataFrame to the CSV file.
-        processed_df.to_csv(csv_output_path, index=False)
-        print(f"\nProcessed pulse data saved to: {csv_output_path}")
-        plt.show()
+            
+        csv_path = os.path.join(output_directory, f"{base_name}_threshold.csv")
+        processed_df.to_csv(csv_path, index=False)
+        print(f"Saved to {csv_path}")
     else:
-        plt.show()
-        return 
+        print("Discarded.")
+    
+    plt.close()
+
+# ==========================================
+# 3. BATCH ORCHESTRATOR
+# ==========================================
+if __name__ == "__main__":
+    # 1. Define your exact Input and Output folders here
+    input_folder = "/home/MakMak445/projects/StrainVisor/src/split-hopkinson_bar/Oscilloscope_Analysis/picoscope_csv"
+    output_folder = "/home/MakMak445/projects/StrainVisor/src/split-hopkinson_bar/Oscilloscope_Analysis/overlay_results2"
+    
+    # 2. Find all CSV files in the input directory
+    csv_files = glob.glob(os.path.join(input_folder, "*.csv"))
+    
+    if not csv_files:
+        print(f"No CSV files found in {input_folder}")
+    else:
+        print(f"Found {len(csv_files)} files. Starting batch processing...")
+        for file in sorted(csv_files):
+            process_and_overlay(file, output_folder)
+        
+        print("\nBatch processing complete.")
