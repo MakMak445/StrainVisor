@@ -1,12 +1,14 @@
 import cv2 as cv
 import numpy as np
+import matplotlib 
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
 import os
 import sys
 import pandas as pd
-from py2DIC.sources import Main
+#from py2DIC.sources import Main
 """Assumptions Made:
 - We are only interested in the distances between the vertical ends of the bars (if oriented differently need to switch x and y in 
 obtain_bar_distance.)
