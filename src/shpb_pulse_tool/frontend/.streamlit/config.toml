@@ -1,0 +1,12 @@
+[server]
+# PicoScope exports run ~35 MB each; the default 200 MB cap is easily hit when
+# uploading a batch. Prefer the mounted input folder for large sets.
+maxUploadSize = 2000
+maxMessageSize = 2000
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"

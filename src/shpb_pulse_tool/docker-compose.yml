@@ -1,0 +1,42 @@
+# SHPB Pulse Analysis - self-contained, shippable stack.
+#
+#   docker compose up --build      then open http://localhost:8501
+#
+# Point SHPB_DATA at a folder of oscilloscope files to analyse them without
+# uploading anything through the browser (recommended: these exports are ~35 MB
+# each). Defaults to ./data/input next to this file.
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      SHPB_INPUT_DIR: /data/input
+      SHPB_MAX_CACHED_JOBS: "32"
+    volumes:
+      # Read-only: the tool never writes to your raw data.
+      - ${SHPB_DATA:-./data/input}:/data/input:ro
+    networks:
+      - shpb-net
+    # Uncomment to call the API directly from the host (docs at /docs):
+    # ports:
+    #   - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      SHPB_API_URL: http://backend:8000
+      SHPB_REQUEST_TIMEOUT: "600"
+    ports:
+      - "8501:8501"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - shpb-net
+
+networks:
+  shpb-net:
+    driver: bridge
